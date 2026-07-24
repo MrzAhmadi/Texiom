@@ -1,0 +1,24 @@
+name: texbuild
+arch: all
+platform: linux
+version: "${TEXBUILD_VERSION}"
+description: "Compile any .tex file into a PDF using a containerized, full TeX Live distribution - no LaTeX installation required on the host."
+maintainer: "Reza <mrzahmadi96@gmail.com>"
+license: MIT
+homepage: "https://github.com/MrzAhmadi/latex-docker-build"
+
+contents:
+  - src: ./texbuild
+    dst: /usr/lib/texbuild/texbuild
+    file_info:
+      mode: 0755
+
+  - src: ./.devcontainer/Dockerfile
+    dst: /usr/lib/texbuild/.devcontainer/Dockerfile
+
+  - src: ./VERSION
+    dst: /usr/lib/texbuild/VERSION
+
+  - src: /usr/lib/texbuild/texbuild
+    dst: /usr/bin/texbuild
+    type: symlink

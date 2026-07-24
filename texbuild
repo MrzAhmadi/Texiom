@@ -3,30 +3,32 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 DEVCONTAINER_DIR="$SCRIPT_DIR/.devcontainer"
-IMAGE_TAG="latex-docker-build"
+VERSION="$(cat "$SCRIPT_DIR/VERSION" 2>/dev/null || echo "unknown")"
+IMAGE_TAG="texbuild"
 FORCE_REBUILD=0
+PDF_ONLY=0
 TEX_DIR=""
 TEX_FILE=""
 
-# By default bash needs two Tab presses before it lists matches (the first
-# just fills in the unambiguous part and beeps); show the list on the first
-# press instead, and don't page long listings, so `read -e` below feels like
-# normal shell completion.
 bind 'set show-all-if-ambiguous on' 2>/dev/null || true
 bind 'set page-completions off' 2>/dev/null || true
 
 usage() {
     cat <<'USAGE'
 Usage:
-  ./build.sh                              interactive prompts
-  ./build.sh -d DIR -f FILE.tex           non-interactive
-  ./build.sh -d DIR -f FILE.tex --rebuild force a fresh image build
+  texbuild                              interactive prompts
+  texbuild -d DIR -f FILE.tex           non-interactive
+  texbuild -d DIR -f FILE.tex --rebuild force a fresh image build
+  texbuild -d DIR -f FILE.tex --pdf-only
 
 Options:
   -d, --dir DIR       Directory containing the .tex file
   -f, --file FILE     Name of the .tex file (extension optional)
-  -t, --tag TAG       Docker image tag to use/build (default: latex-docker-build)
+  -t, --tag TAG       Docker image tag to use/build (default: texbuild)
   -r, --rebuild       Force rebuild of the Docker image even if it exists
+  -p, --pdf-only      Remove latexmk's auxiliary files after a successful
+                       build, leaving only the .pdf next to the .tex source
+  -v, --version       Show the installed version
   -h, --help          Show this help message
 USAGE
     exit 0
@@ -34,19 +36,18 @@ USAGE
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        -d|--dir)     TEX_DIR="$2"; shift 2 ;;
-        -f|--file)    TEX_FILE="$2"; shift 2 ;;
-        -t|--tag)     IMAGE_TAG="$2"; shift 2 ;;
-        -r|--rebuild) FORCE_REBUILD=1; shift ;;
-        -h|--help)    usage ;;
+        -d|--dir)      TEX_DIR="$2"; shift 2 ;;
+        -f|--file)     TEX_FILE="$2"; shift 2 ;;
+        -t|--tag)      IMAGE_TAG="$2"; shift 2 ;;
+        -r|--rebuild)  FORCE_REBUILD=1; shift ;;
+        -p|--pdf-only) PDF_ONLY=1; shift ;;
+        -v|--version)  echo "texbuild $VERSION"; exit 0 ;;
+        -h|--help)     usage ;;
         *) echo "Unknown option: $1" >&2; usage ;;
     esac
 done
 
 if [[ -z "$TEX_DIR" && -z "$TEX_FILE" ]]; then
-    # Tab-completion naturally runs past the directory and into the file
-    # itself, so accept a full path here instead of asking for the directory
-    # in isolation - split it into dir/file afterward.
     read -e -rp "Path to the .tex file (or its directory): " TEX_PATH
     TEX_PATH="${TEX_PATH/#\~/$HOME}"
     if [[ -d "$TEX_PATH" ]]; then
@@ -93,4 +94,12 @@ if [[ -f "$TEX_DIR/$PDF_FILE" ]]; then
 else
     echo "Build finished but '$PDF_FILE' was not found - check the log above." >&2
     exit 1
+fi
+
+if [[ "$PDF_ONLY" -eq 1 ]]; then
+    BASE_NAME="${TEX_FILE%.tex}"
+    for ext in aux log out toc lof lot fls fdb_latexmk synctex.gz bbl blg bcf run.xml nav snm vrb; do
+        rm -f "$TEX_DIR/$BASE_NAME.$ext"
+    done
+    echo "Removed auxiliary build files; only '$PDF_FILE' remains."
 fi
