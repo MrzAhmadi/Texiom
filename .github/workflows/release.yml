@@ -32,6 +32,9 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -q -y nfpm
 
+      - name: Create dist directory
+        run: mkdir -p dist
+
       - name: Build .deb
         run: nfpm pkg --config packaging/nfpm.yaml --packager deb --target dist/
         env:
