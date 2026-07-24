@@ -1,0 +1,20 @@
+# LaTeX auxiliary files (produced when testing against a local .tex file)
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.bbl
+*.blg
+*.bcf
+*.run.xml
+*.nav
+*.snm
+*.vrb
+
+# OS / editor cruft
+.DS_Store
