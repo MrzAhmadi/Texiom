@@ -7,6 +7,7 @@ VERSION="$(cat "$SCRIPT_DIR/VERSION" 2>/dev/null || echo "unknown")"
 IMAGE_TAG="texbuild"
 FORCE_REBUILD=0
 PDF_ONLY=0
+WATCH=0
 TEX_DIR=""
 TEX_FILE=""
 
@@ -20,6 +21,7 @@ Usage:
   texbuild -d DIR -f FILE.tex           non-interactive
   texbuild -d DIR -f FILE.tex --rebuild force a fresh image build
   texbuild -d DIR -f FILE.tex --pdf-only
+  texbuild -d DIR -f FILE.tex --watch
 
 Options:
   -d, --dir DIR       Directory containing the .tex file
@@ -28,6 +30,8 @@ Options:
   -r, --rebuild       Force rebuild of the Docker image even if it exists
   -p, --pdf-only      Remove latexmk's auxiliary files after a successful
                        build, leaving only the .pdf next to the .tex source
+  -w, --watch         Rebuild automatically whenever the .tex file (or
+                       anything it includes) changes; Ctrl+C to stop
   -v, --version       Show the installed version
   -h, --help          Show this help message
 USAGE
@@ -41,6 +45,7 @@ while [[ $# -gt 0 ]]; do
         -t|--tag)      IMAGE_TAG="$2"; shift 2 ;;
         -r|--rebuild)  FORCE_REBUILD=1; shift ;;
         -p|--pdf-only) PDF_ONLY=1; shift ;;
+        -w|--watch)    WATCH=1; shift ;;
         -v|--version)  echo "texbuild $VERSION"; exit 0 ;;
         -h|--help)     usage ;;
         *) echo "Unknown option: $1" >&2; usage ;;
@@ -85,9 +90,15 @@ else
     echo "Using existing image '$IMAGE_TAG'."
 fi
 
-echo "Compiling '$TEX_FILE' in '$TEX_DIR' ..."
-docker run --rm -v "$TEX_DIR":/workspace -w /workspace "$IMAGE_TAG" \
-    latexmk -pdf -interaction=nonstopmode -halt-on-error "$TEX_FILE"
+if [[ "$WATCH" -eq 1 ]]; then
+    echo "Watching '$TEX_FILE' in '$TEX_DIR' - rebuilding on every change (Ctrl+C to stop) ..."
+    docker run --rm -v "$TEX_DIR":/workspace -w /workspace "$IMAGE_TAG" \
+        latexmk -pvc -view=none -pdf -interaction=nonstopmode -halt-on-error "$TEX_FILE" || true
+else
+    echo "Compiling '$TEX_FILE' in '$TEX_DIR' ..."
+    docker run --rm -v "$TEX_DIR":/workspace -w /workspace "$IMAGE_TAG" \
+        latexmk -pdf -interaction=nonstopmode -halt-on-error "$TEX_FILE"
+fi
 
 PDF_FILE="${TEX_FILE%.tex}.pdf"
 if [[ -f "$TEX_DIR/$PDF_FILE" ]]; then

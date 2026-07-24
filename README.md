@@ -77,6 +77,15 @@ The resulting `paper.pdf` (and all `latexmk` auxiliary files) will appear
 next to `paper.tex` in the original directory. Pass `--pdf-only` if you
 just want the `.pdf` and none of the auxiliary files.
 
+To rebuild automatically every time you save the file, pass `--watch`:
+
+```bash
+texbuild --dir /path/to/your/project --file paper.tex --watch
+```
+
+This keeps running in the foreground and recompiles on every change to
+`paper.tex` (or anything it includes) until you press Ctrl+C.
+
 ### Options
 
 | Flag              | Description                                                |
@@ -86,6 +95,7 @@ just want the `.pdf` and none of the auxiliary files.
 | `-t, --tag TAG`   | Docker image tag to use/build (default: `texbuild`)         |
 | `-r, --rebuild`   | Force a fresh image build even if one already exists        |
 | `-p, --pdf-only`  | Remove `latexmk`'s auxiliary files after a successful build, leaving only the `.pdf` |
+| `-w, --watch`     | Rebuild automatically whenever the `.tex` file changes, until Ctrl+C |
 | `-v, --version`   | Show the installed version                                  |
 | `-h, --help`      | Show usage                                                   |
 
