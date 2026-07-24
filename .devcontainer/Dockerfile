@@ -11,8 +11,8 @@ RUN apt-get update && apt-get install -y \
     procps \
     && rm -rf /var/lib/apt/lists/*
 
-COPY action-entrypoint.sh /usr/local/bin/texbuild-action-entrypoint
-RUN chmod +x /usr/local/bin/texbuild-action-entrypoint
+COPY action-entrypoint.sh /usr/local/bin/latexbuild-action-entrypoint
+RUN chmod +x /usr/local/bin/latexbuild-action-entrypoint
 
 WORKDIR /workspace
 

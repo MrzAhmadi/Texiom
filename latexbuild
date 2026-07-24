@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 DEVCONTAINER_DIR="$SCRIPT_DIR/.devcontainer"
 VERSION="$(cat "$SCRIPT_DIR/VERSION" 2>/dev/null || echo "unknown")"
-IMAGE_TAG="texbuild"
+IMAGE_TAG="latexbuild"
 FORCE_REBUILD=0
 PDF_ONLY=0
 WATCH=0
@@ -17,16 +17,16 @@ bind 'set page-completions off' 2>/dev/null || true
 usage() {
     cat <<'USAGE'
 Usage:
-  texbuild                              interactive prompts
-  texbuild -d DIR -f FILE.tex           non-interactive
-  texbuild -d DIR -f FILE.tex --rebuild force a fresh image build
-  texbuild -d DIR -f FILE.tex --pdf-only
-  texbuild -d DIR -f FILE.tex --watch
+  latexbuild                              interactive prompts
+  latexbuild -d DIR -f FILE.tex           non-interactive
+  latexbuild -d DIR -f FILE.tex --rebuild force a fresh image build
+  latexbuild -d DIR -f FILE.tex --pdf-only
+  latexbuild -d DIR -f FILE.tex --watch
 
 Options:
   -d, --dir DIR       Directory containing the .tex file
   -f, --file FILE     Name of the .tex file (extension optional)
-  -t, --tag TAG       Docker image tag to use/build (default: texbuild)
+  -t, --tag TAG       Docker image tag to use/build (default: latexbuild)
   -r, --rebuild       Force rebuild of the Docker image even if it exists
   -p, --pdf-only      Remove latexmk's auxiliary files after a successful
                        build, leaving only the .pdf next to the .tex source
@@ -46,7 +46,7 @@ while [[ $# -gt 0 ]]; do
         -r|--rebuild)  FORCE_REBUILD=1; shift ;;
         -p|--pdf-only) PDF_ONLY=1; shift ;;
         -w|--watch)    WATCH=1; shift ;;
-        -v|--version)  echo "texbuild $VERSION"; exit 0 ;;
+        -v|--version)  echo "latexbuild $VERSION"; exit 0 ;;
         -h|--help)     usage ;;
         *) echo "Unknown option: $1" >&2; usage ;;
     esac

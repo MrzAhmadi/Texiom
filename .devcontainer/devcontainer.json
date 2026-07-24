@@ -1,5 +1,5 @@
 {
-    "name": "texbuild",
+    "name": "latexbuild",
     "build": {
         "dockerfile": "Dockerfile"
     },

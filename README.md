@@ -1,6 +1,6 @@
-# texbuild
+# latexbuild
 
-[![Version](https://img.shields.io/github/v/release/MrzAhmadi/texbuild)](https://github.com/MrzAhmadi/texbuild/releases)
+[![Version](https://img.shields.io/github/v/release/MrzAhmadi/latexbuild)](https://github.com/MrzAhmadi/latexbuild/releases)
 
 Compile any `.tex` file into a PDF using a containerized, full TeX Live
 distribution — no LaTeX installation required on the host machine.
@@ -10,7 +10,7 @@ distribution — no LaTeX installation required on the host machine.
 Installing a full TeX Live distribution locally is slow, large, and easy to
 get out of sync across machines. This project packages `texlive-full`,
 `latexmk`, and `biber` into a single Docker image (also usable as a VS Code
-Dev Container) and provides a small `texbuild` command that compiles any
+Dev Container) and provides a small `latexbuild` command that compiles any
 `.tex` file on your host by mounting its directory into the container.
 
 ## Requirements
@@ -23,43 +23,43 @@ No LaTeX distribution needs to be installed on the host.
 ## Installation
 
 Download the latest release from the
-[Releases page](https://github.com/MrzAhmadi/texbuild/releases).
+[Releases page](https://github.com/MrzAhmadi/latexbuild/releases).
 
 **Debian / Ubuntu:**
 
 ```bash
-sudo dpkg -i texbuild_*.deb
+sudo dpkg -i latexbuild_*.deb
 ```
 
 **Fedora / RHEL:**
 
 ```bash
-sudo rpm -i texbuild-*.rpm
+sudo rpm -i latexbuild-*.rpm
 ```
 
 **Any other Linux (generic tarball):**
 
 ```bash
-tar -xzf texbuild-*-linux.tar.gz
-cd texbuild-*/
+tar -xzf latexbuild-*-linux.tar.gz
+cd latexbuild-*/
 sudo ./install.sh
 ```
 
-Each of these installs a `texbuild` command onto your `PATH`, usable from
+Each of these installs a `latexbuild` command onto your `PATH`, usable from
 any directory.
 
 **Running from a git checkout without installing:**
 
 ```bash
-git clone https://github.com/MrzAhmadi/texbuild.git
-cd texbuild
-./texbuild
+git clone https://github.com/MrzAhmadi/latexbuild.git
+cd latexbuild
+./latexbuild
 ```
 
 ## Usage
 
 ```bash
-texbuild
+latexbuild
 ```
 
 It will interactively ask for the path to your `.tex` file (tab-completion
@@ -72,7 +72,7 @@ Path to the .tex file (or its directory): /path/to/your/project/paper.tex
 Or run it non-interactively:
 
 ```bash
-texbuild --dir /path/to/your/project --file paper.tex
+latexbuild --dir /path/to/your/project --file paper.tex
 ```
 
 The resulting `paper.pdf` (and all `latexmk` auxiliary files) will appear
@@ -82,7 +82,7 @@ just want the `.pdf` and none of the auxiliary files.
 To rebuild automatically every time you save the file, pass `--watch`:
 
 ```bash
-texbuild --dir /path/to/your/project --file paper.tex --watch
+latexbuild --dir /path/to/your/project --file paper.tex --watch
 ```
 
 This keeps running in the foreground and recompiles on every change to
@@ -122,7 +122,7 @@ Ctrl+S needed.
 |-------------------|-------------------------------------------------------------|
 | `-d, --dir DIR`   | Directory containing the `.tex` file                       |
 | `-f, --file FILE` | Name of the `.tex` file (`.tex` extension optional)         |
-| `-t, --tag TAG`   | Docker image tag to use/build (default: `texbuild`)         |
+| `-t, --tag TAG`   | Docker image tag to use/build (default: `latexbuild`)         |
 | `-r, --rebuild`   | Force a fresh image build even if one already exists        |
 | `-p, --pdf-only`  | Remove `latexmk`'s auxiliary files after a successful build, leaving only the `.pdf` |
 | `-w, --watch`     | Rebuild automatically whenever the `.tex` file changes, until Ctrl+C |
@@ -140,7 +140,7 @@ VS Code with the [Dev Containers extension](https://marketplace.visualstudio.com
 and choose "Reopen in Container" for an interactive environment with the
 LaTeX Workshop extension pre-configured to build on save.
 
-## Using texbuild as a GitHub Action
+## Using latexbuild as a GitHub Action
 
 The same image is published to GHCR and available as a reusable GitHub
 Action, so any repo with a `.tex` file can build a PDF on every push
@@ -148,7 +148,7 @@ without installing anything:
 
 ```yaml
 - uses: actions/checkout@v4
-- uses: MrzAhmadi/texbuild@main
+- uses: MrzAhmadi/latexbuild@main
   with:
     root_file: paper.tex
 ```
@@ -182,7 +182,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: MrzAhmadi/texbuild@main
+      - uses: MrzAhmadi/latexbuild@main
         with:
           root_file: paper.tex
 

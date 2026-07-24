@@ -1,4 +1,4 @@
-name: 'texbuild'
+name: 'latexbuild'
 description: 'Compile a .tex file to PDF using a full TeX Live distribution (texlive-full, latexmk, biber)'
 author: 'Reza Ahmadi'
 branding:
@@ -20,8 +20,8 @@ inputs:
 
 runs:
   using: 'docker'
-  image: 'docker://ghcr.io/mrzahmadi/texbuild:latest'
-  entrypoint: '/usr/local/bin/texbuild-action-entrypoint'
+  image: 'docker://ghcr.io/mrzahmadi/latexbuild:latest'
+  entrypoint: '/usr/local/bin/latexbuild-action-entrypoint'
   args:
     - ${{ inputs.root_file }}
     - ${{ inputs.working_directory }}

@@ -38,25 +38,25 @@ jobs:
       - name: Build .deb
         run: nfpm pkg --config packaging/nfpm.yaml --packager deb --target dist/
         env:
-          TEXBUILD_VERSION: ${{ steps.ver.outputs.value }}
+          LATEXBUILD_VERSION: ${{ steps.ver.outputs.value }}
 
       - name: Build .rpm
         run: nfpm pkg --config packaging/nfpm.yaml --packager rpm --target dist/
         env:
-          TEXBUILD_VERSION: ${{ steps.ver.outputs.value }}
+          LATEXBUILD_VERSION: ${{ steps.ver.outputs.value }}
 
       - name: Build .tar.gz
         run: |
           VERSION="${{ steps.ver.outputs.value }}"
-          DIR="texbuild-${VERSION}"
+          DIR="latexbuild-${VERSION}"
           mkdir -p "${DIR}/.devcontainer"
-          cp texbuild "${DIR}/texbuild"
+          cp latexbuild "${DIR}/latexbuild"
           cp .devcontainer/Dockerfile "${DIR}/.devcontainer/Dockerfile"
           cp VERSION "${DIR}/VERSION"
           cp README.md "${DIR}/"
           cp packaging/install.sh "${DIR}/install.sh"
-          chmod +x "${DIR}/texbuild" "${DIR}/install.sh"
-          tar -czf "dist/texbuild-${VERSION}-linux.tar.gz" "${DIR}/"
+          chmod +x "${DIR}/latexbuild" "${DIR}/install.sh"
+          tar -czf "dist/latexbuild-${VERSION}-linux.tar.gz" "${DIR}/"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -92,8 +92,8 @@ jobs:
           file: .devcontainer/Dockerfile
           push: true
           tags: |
-            ghcr.io/mrzahmadi/texbuild:${{ env.VERSION }}
-            ghcr.io/mrzahmadi/texbuild:latest
+            ghcr.io/mrzahmadi/latexbuild:${{ env.VERSION }}
+            ghcr.io/mrzahmadi/latexbuild:latest
 
   release:
     name: Create GitHub Release
@@ -120,6 +120,6 @@ jobs:
           tag_name: v${{ env.VERSION }}
           generate_release_notes: true
           files: |
-            dist/texbuild_*.deb
-            dist/texbuild-*.rpm
-            dist/texbuild-*.tar.gz
+            dist/latexbuild_*.deb
+            dist/latexbuild-*.rpm
+            dist/latexbuild-*.tar.gz
