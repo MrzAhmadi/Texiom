@@ -92,13 +92,32 @@ Only run one `--watch` per file at a time - two instances writing to the
 same `.aux`/`.log` files at once will race each other and can produce
 spurious `latexmk` errors.
 
-#### Rebuilding as you type, before you save
+### Live browser editor
 
-`--watch` only sees changes once they're written to disk, and an editor's
-unsaved buffer lives in memory only - so with a manual save, the rebuild is
-one keystroke-to-save behind you. To have it kick in automatically, enable
-Auto Save in VS Code so it writes the file for you shortly after you stop
-typing:
+For a rebuild-as-you-type experience with no save step at all, pass
+`--edit` instead:
+
+```bash
+latexbuild --dir /path/to/your/project --file paper.tex --edit
+```
+
+This opens a browser split in two: your `.tex` source on the left, the
+compiled PDF on the right. Every edit recompiles automatically (debounced
+briefly after you stop typing) and refreshes the PDF - there's no file to
+save, no separate editor to keep in sync. Ctrl+C in the terminal stops it.
+
+It's a small local web server (source and PDF only ever touch
+`127.0.0.1`), not a general-purpose editor - no autocomplete, snippets, or
+extensions, just source on one side and the rendered result on the other.
+
+#### Rebuilding as you type, before you save (using your own editor instead)
+
+If you'd rather keep using VS Code (or another editor) instead of the
+browser-based `--edit`, `--watch` only sees changes once they're written
+to disk, and an editor's unsaved buffer lives in memory only - so with a
+manual save, the rebuild is one keystroke-to-save behind you. To have it
+kick in automatically, enable Auto Save in VS Code so it writes the file
+for you shortly after you stop typing:
 
 1. Open VS Code's Settings (`Ctrl+,`).
 2. Search for `files.autoSave` and set it to `afterDelay`.
@@ -126,12 +145,15 @@ Ctrl+S needed.
 | `-r, --rebuild`   | Force a fresh image build even if one already exists        |
 | `-p, --pdf-only`  | Remove `latexmk`'s auxiliary files after a successful build, leaving only the `.pdf` |
 | `-w, --watch`     | Rebuild automatically whenever the `.tex` file changes, until Ctrl+C |
+| `-e, --edit`      | Open a browser split editor/PDF view that rebuilds as you type, until Ctrl+C |
 | `-v, --version`   | Show the installed version                                  |
 | `-h, --help`      | Show usage                                                   |
 
 The first run builds the Docker image (a few minutes, since `texlive-full`
 is a large distribution); every run after that reuses the cached image, so
-compilation is fast.
+compilation is fast. Upgrading `latexbuild` to a new version automatically
+rebuilds the image once if that version needs a different one - no manual
+`--rebuild` required.
 
 ## Using as a VS Code Dev Container
 

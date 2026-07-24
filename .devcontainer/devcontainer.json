@@ -1,7 +1,8 @@
 {
     "name": "latexbuild",
     "build": {
-        "dockerfile": "Dockerfile"
+        "dockerfile": "../docker/Dockerfile",
+        "context": "../docker"
     },
     "workspaceFolder": "/workspace",
     "customizations": {

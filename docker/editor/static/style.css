@@ -1,0 +1,32 @@
+html, body { margin: 0; height: 100%; }
+
+#container { display: flex; height: 100vh; }
+#editor-pane { width: 50%; height: 100%; }
+#pdf-pane { width: 50%; height: 100%; }
+#pdf-pane iframe { width: 100%; height: 100%; border: none; }
+.CodeMirror { height: 100%; font-size: 14px; }
+
+#toolbar {
+  position: fixed;
+  top: 8px;
+  right: 51%;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font: 12px sans-serif;
+}
+#toolbar label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+#compileNow {
+  font: 12px sans-serif;
+  padding: 3px 10px;
+  border-radius: 4px;
+  border: 1px solid #888;
+  background: #eee;
+  cursor: pointer;
+}
+
+#status { padding: 3px 10px; border-radius: 4px; }
+.ok { background: #2e7d32; color: #fff; }
+.err { background: #c62828; color: #fff; }
+.busy { background: #f9a825; color: #000; }

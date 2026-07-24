@@ -49,9 +49,9 @@ jobs:
         run: |
           VERSION="${{ steps.ver.outputs.value }}"
           DIR="latexbuild-${VERSION}"
-          mkdir -p "${DIR}/.devcontainer"
+          mkdir -p "${DIR}"
           cp latexbuild "${DIR}/latexbuild"
-          cp .devcontainer/Dockerfile "${DIR}/.devcontainer/Dockerfile"
+          cp -r docker "${DIR}/docker"
           cp VERSION "${DIR}/VERSION"
           cp README.md "${DIR}/"
           cp packaging/install.sh "${DIR}/install.sh"
@@ -88,9 +88,11 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: .devcontainer
-          file: .devcontainer/Dockerfile
+          context: docker
+          file: docker/Dockerfile
           push: true
+          build-args: |
+            LATEXBUILD_VERSION=${{ env.VERSION }}
           tags: |
             ghcr.io/mrzahmadi/latexbuild:${{ env.VERSION }}
             ghcr.io/mrzahmadi/latexbuild:latest
