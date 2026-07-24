@@ -86,6 +86,34 @@ texbuild --dir /path/to/your/project --file paper.tex --watch
 This keeps running in the foreground and recompiles on every change to
 `paper.tex` (or anything it includes) until you press Ctrl+C.
 
+Only run one `--watch` per file at a time - two instances writing to the
+same `.aux`/`.log` files at once will race each other and can produce
+spurious `latexmk` errors.
+
+#### Rebuilding as you type, before you save
+
+`--watch` only sees changes once they're written to disk, and an editor's
+unsaved buffer lives in memory only - so with a manual save, the rebuild is
+one keystroke-to-save behind you. To have it kick in automatically, enable
+Auto Save in VS Code so it writes the file for you shortly after you stop
+typing:
+
+1. Open VS Code's Settings (`Ctrl+,`).
+2. Search for `files.autoSave` and set it to `afterDelay`.
+3. Search for `files.autoSaveDelay` and set it to a short delay, e.g. `1000`
+   (milliseconds).
+
+Or add both directly to `settings.json`:
+
+```json
+"files.autoSave": "afterDelay",
+"files.autoSaveDelay": 1000
+```
+
+With this on, VS Code saves the file on its own a second after you stop
+typing, and a running `--watch` picks up that save and rebuilds - no manual
+Ctrl+S needed.
+
 ### Options
 
 | Flag              | Description                                                |
