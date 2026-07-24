@@ -1,4 +1,3 @@
-# LaTeX auxiliary files (produced when testing against a local .tex file)
 *.aux
 *.log
 *.out
@@ -16,5 +15,4 @@
 *.snm
 *.vrb
 
-# OS / editor cruft
 .DS_Store

@@ -1,20 +1,4 @@
 #!/usr/bin/env bash
-#
-# build.sh - Compile a LaTeX (.tex) file inside a Docker container, without
-# installing any LaTeX distribution on the host machine.
-#
-# Usage:
-#   ./build.sh                              interactive prompts
-#   ./build.sh -d DIR -f FILE.tex           non-interactive
-#   ./build.sh -d DIR -f FILE.tex --rebuild force a fresh image build
-#
-# Options:
-#   -d, --dir DIR       Directory containing the .tex file
-#   -f, --file FILE     Name of the .tex file (extension optional)
-#   -t, --tag TAG       Docker image tag to use/build (default: latex-docker-build)
-#   -r, --rebuild       Force rebuild of the Docker image even if it exists
-#   -h, --help          Show this help message
-#
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
@@ -24,8 +8,27 @@ FORCE_REBUILD=0
 TEX_DIR=""
 TEX_FILE=""
 
+# By default bash needs two Tab presses before it lists matches (the first
+# just fills in the unambiguous part and beeps); show the list on the first
+# press instead, and don't page long listings, so `read -e` below feels like
+# normal shell completion.
+bind 'set show-all-if-ambiguous on' 2>/dev/null || true
+bind 'set page-completions off' 2>/dev/null || true
+
 usage() {
-    sed -n '2,20p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    cat <<'USAGE'
+Usage:
+  ./build.sh                              interactive prompts
+  ./build.sh -d DIR -f FILE.tex           non-interactive
+  ./build.sh -d DIR -f FILE.tex --rebuild force a fresh image build
+
+Options:
+  -d, --dir DIR       Directory containing the .tex file
+  -f, --file FILE     Name of the .tex file (extension optional)
+  -t, --tag TAG       Docker image tag to use/build (default: latex-docker-build)
+  -r, --rebuild       Force rebuild of the Docker image even if it exists
+  -h, --help          Show this help message
+USAGE
     exit 0
 }
 
@@ -40,8 +43,20 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ -z "$TEX_DIR" ]]; then
-    read -rp "Directory containing the .tex file: " TEX_DIR
+if [[ -z "$TEX_DIR" && -z "$TEX_FILE" ]]; then
+    # Tab-completion naturally runs past the directory and into the file
+    # itself, so accept a full path here instead of asking for the directory
+    # in isolation - split it into dir/file afterward.
+    read -e -rp "Path to the .tex file (or its directory): " TEX_PATH
+    TEX_PATH="${TEX_PATH/#\~/$HOME}"
+    if [[ -d "$TEX_PATH" ]]; then
+        TEX_DIR="$TEX_PATH"
+    else
+        TEX_DIR="$(dirname -- "$TEX_PATH")"
+        TEX_FILE="$(basename -- "$TEX_PATH")"
+    fi
+elif [[ -z "$TEX_DIR" ]]; then
+    read -e -rp "Directory containing the .tex file: " TEX_DIR
 fi
 TEX_DIR="${TEX_DIR/#\~/$HOME}"
 if [[ ! -d "$TEX_DIR" ]]; then
@@ -49,9 +64,10 @@ if [[ ! -d "$TEX_DIR" ]]; then
     exit 1
 fi
 TEX_DIR="$(cd "$TEX_DIR" && pwd)"
+cd "$TEX_DIR"
 
 if [[ -z "$TEX_FILE" ]]; then
-    read -rp "Name of the .tex file (e.g. paper.tex): " TEX_FILE
+    read -e -rp "Name of the .tex file (e.g. paper.tex): " TEX_FILE
 fi
 [[ "$TEX_FILE" == *.tex ]] || TEX_FILE="${TEX_FILE}.tex"
 
