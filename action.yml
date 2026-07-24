@@ -1,0 +1,28 @@
+name: 'texbuild'
+description: 'Compile a .tex file to PDF using a full TeX Live distribution (texlive-full, latexmk, biber)'
+author: 'Reza Ahmadi'
+branding:
+  icon: 'file-text'
+  color: 'blue'
+
+inputs:
+  root_file:
+    description: 'Path to the main .tex file, relative to working_directory'
+    required: true
+  working_directory:
+    description: 'Directory containing the .tex sources'
+    required: false
+    default: '.'
+  args:
+    description: 'Arguments passed to latexmk'
+    required: false
+    default: '-pdf -interaction=nonstopmode -halt-on-error'
+
+runs:
+  using: 'docker'
+  image: 'docker://ghcr.io/mrzahmadi/texbuild:latest'
+  entrypoint: '/usr/local/bin/texbuild-action-entrypoint'
+  args:
+    - ${{ inputs.root_file }}
+    - ${{ inputs.working_directory }}
+    - ${{ inputs.args }}

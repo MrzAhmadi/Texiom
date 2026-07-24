@@ -66,9 +66,38 @@ jobs:
             dist/*.rpm
             dist/*.tar.gz
 
+  docker-image:
+    name: Build and push Docker image
+    needs: packages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      VERSION: ${{ needs.packages.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .devcontainer
+          file: .devcontainer/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/mrzahmadi/texbuild:${{ env.VERSION }}
+            ghcr.io/mrzahmadi/texbuild:latest
+
   release:
     name: Create GitHub Release
-    needs: packages
+    needs: [packages, docker-image]
     runs-on: ubuntu-latest
     env:
       VERSION: ${{ needs.packages.outputs.version }}

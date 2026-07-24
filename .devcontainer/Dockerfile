@@ -11,6 +11,9 @@ RUN apt-get update && apt-get install -y \
     procps \
     && rm -rf /var/lib/apt/lists/*
 
+COPY action-entrypoint.sh /usr/local/bin/texbuild-action-entrypoint
+RUN chmod +x /usr/local/bin/texbuild-action-entrypoint
+
 WORKDIR /workspace
 
 CMD ["bash"]

@@ -140,6 +140,57 @@ VS Code with the [Dev Containers extension](https://marketplace.visualstudio.com
 and choose "Reopen in Container" for an interactive environment with the
 LaTeX Workshop extension pre-configured to build on save.
 
+## Using texbuild as a GitHub Action
+
+The same image is published to GHCR and available as a reusable GitHub
+Action, so any repo with a `.tex` file can build a PDF on every push
+without installing anything:
+
+```yaml
+- uses: actions/checkout@v4
+- uses: MrzAhmadi/texbuild@main
+  with:
+    root_file: paper.tex
+```
+
+Pin to a released tag (e.g. `@v0.0.3`) instead of `@main` for reproducible
+builds once one exists.
+
+### Inputs
+
+| Input               | Description                                                    | Default                                        |
+|---------------------|------------------------------------------------------------------|-------------------------------------------------|
+| `root_file`         | Path to the main `.tex` file, relative to `working_directory`    | *(required)*                                     |
+| `working_directory` | Directory containing the `.tex` sources                          | `.`                                              |
+| `args`              | Arguments passed to `latexmk`                                    | `-pdf -interaction=nonstopmode -halt-on-error`   |
+
+The compiled PDF is left next to the source file for a later step (e.g.
+`actions/upload-artifact`, or attaching it to a release) to pick up.
+
+### Attaching the PDF to a GitHub Release on tag
+
+```yaml
+name: Release PDF
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: MrzAhmadi/texbuild@main
+        with:
+          root_file: paper.tex
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: paper.pdf
+```
+
 ## What's inside the image
 
 - Ubuntu 24.04
@@ -150,8 +201,9 @@ LaTeX Workshop extension pre-configured to build on save.
 ## Releases
 
 Pushing to `main` builds and publishes `.deb`, `.rpm`, and `.tar.gz`
-packages via GitHub Actions, tagged with the version in the [`VERSION`](VERSION)
-file.
+packages, and the `ghcr.io/mrzahmadi/texbuild` Docker image used by the
+GitHub Action above, all tagged with the version in the
+[`VERSION`](VERSION) file.
 
 ## Contributing
 
