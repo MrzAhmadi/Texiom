@@ -198,17 +198,6 @@ jobs:
   classes, `tcolorbox`, `mdframed`, and virtually any other LaTeX package)
 - `latexmk`, `biber`, `make`, `git`
 
-## Releases
-
-Pushing to `main` builds and publishes `.deb`, `.rpm`, and `.tar.gz`
-packages, and the `ghcr.io/mrzahmadi/texbuild` Docker image used by the
-GitHub Action above, all tagged with the version in the
-[`VERSION`](VERSION) file.
-
-## Contributing
-
-Issues and pull requests are welcome.
-
 ## License
 
 MIT
