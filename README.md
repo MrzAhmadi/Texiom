@@ -21,7 +21,7 @@ No LaTeX distribution needs to be installed on the host.
 ## Installation
 
 Download the latest release from the
-[Releases page](https://github.com/MrzAhmadi/latex-docker-build/releases).
+[Releases page](https://github.com/MrzAhmadi/texbuild/releases).
 
 **Debian / Ubuntu:**
 
@@ -49,8 +49,8 @@ any directory.
 **Running from a git checkout without installing:**
 
 ```bash
-git clone https://github.com/MrzAhmadi/latex-docker-build.git
-cd latex-docker-build
+git clone https://github.com/MrzAhmadi/texbuild.git
+cd texbuild
 ./texbuild
 ```
 
