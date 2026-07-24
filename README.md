@@ -1,5 +1,7 @@
 # texbuild
 
+[![Version](https://img.shields.io/github/v/release/MrzAhmadi/texbuild)](https://github.com/MrzAhmadi/texbuild/releases)
+
 Compile any `.tex` file into a PDF using a containerized, full TeX Live
 distribution — no LaTeX installation required on the host machine.
 
