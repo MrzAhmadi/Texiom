@@ -47,19 +47,20 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ -z "$TEX_DIR" && -z "$TEX_FILE" ]]; then
-    read -e -rp "Path to the .tex file (or its directory): " TEX_PATH
-    TEX_PATH="${TEX_PATH/#\~/$HOME}"
-    if [[ -d "$TEX_PATH" ]]; then
-        TEX_DIR="$TEX_PATH"
+if [[ -z "$TEX_DIR" ]]; then
+    if [[ -z "$TEX_FILE" ]]; then
+        read -e -rp "Path to the .tex file (or its directory): " TEX_DIR
     else
-        TEX_DIR="$(dirname -- "$TEX_PATH")"
-        TEX_FILE="$(basename -- "$TEX_PATH")"
+        read -e -rp "Directory containing the .tex file: " TEX_DIR
     fi
-elif [[ -z "$TEX_DIR" ]]; then
-    read -e -rp "Directory containing the .tex file: " TEX_DIR
 fi
 TEX_DIR="${TEX_DIR/#\~/$HOME}"
+
+if [[ -z "$TEX_FILE" && ! -d "$TEX_DIR" ]]; then
+    TEX_FILE="$(basename -- "$TEX_DIR")"
+    TEX_DIR="$(dirname -- "$TEX_DIR")"
+fi
+
 if [[ ! -d "$TEX_DIR" ]]; then
     echo "Error: directory '$TEX_DIR' does not exist." >&2
     exit 1
