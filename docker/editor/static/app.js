@@ -3,6 +3,7 @@ const liveToggle = document.getElementById('liveToggle');
 const darkToggle = document.getElementById('darkToggle');
 const pdfOnlyToggle = document.getElementById('pdfOnlyToggle');
 const errorPanel = document.getElementById('errorPanel');
+const compileOverlay = document.getElementById('compileOverlay');
 
 pdfOnlyToggle.checked = localStorage.getItem('latexbuild-pdfonly') === '1';
 pdfOnlyToggle.addEventListener('change', () => {
@@ -11,7 +12,9 @@ pdfOnlyToggle.addEventListener('change', () => {
 
 let isDirty = false;
 let suppressDirty = true;
-let isCompiling = false;
+let activeCompileState = 'idle';
+let compilingFiles = new Set();
+let pollTimer = null;
 
 function systemPrefersDark() {
   return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -93,13 +96,32 @@ document.getElementById('compileNow').addEventListener('click', compile);
 function compile() {
   status.className = 'busy';
   status.textContent = 'building...';
-  isCompiling = true;
-  renderCurrentTree();
   fetch('/compile?pdf_only=' + (pdfOnlyToggle.checked ? '1' : '0'), { method: 'POST', body: cm.getValue() })
+    .then(() => startPolling());
+}
+
+function updateCompileOverlay() {
+  const busy = activeCompileState === 'queued' || activeCompileState === 'compiling';
+  compileOverlay.classList.toggle('visible', busy);
+  if (busy) errorPanel.classList.remove('visible');
+}
+
+function setActiveCompileState(state) {
+  activeCompileState = state;
+  updateCompileOverlay();
+  if (state === 'idle') return;
+  status.className = 'busy';
+  status.textContent = state === 'queued' ? 'queued...' : 'building...';
+}
+
+function finishActiveCompile(file) {
+  activeCompileState = 'idle';
+  updateCompileOverlay();
+  if (!file) return;
+  fetch('/compile-status?file=' + encodeURIComponent(file))
     .then(r => r.json())
     .then(data => {
-      isCompiling = false;
-      renderCurrentTree();
+      if (data.state !== 'done') return;
       if (data.ok) {
         isDirty = false;
         status.className = 'ok';
@@ -114,6 +136,44 @@ function compile() {
         errorPanel.focus();
       }
     });
+}
+
+function pollTick() {
+  fetch('/compile-queue').then(r => r.json()).then(data => {
+    compilingFiles = new Set(data.queued);
+    renderCurrentTree();
+
+    const stillBusy = lastTreeCurrent && compilingFiles.has(lastTreeCurrent);
+    if (stillBusy) {
+      setActiveCompileState(data.compiling === lastTreeCurrent ? 'compiling' : 'queued');
+    } else if (activeCompileState !== 'idle') {
+      finishActiveCompile(lastTreeCurrent);
+    }
+
+    if (compilingFiles.size === 0) stopPolling();
+  });
+}
+
+function startPolling() {
+  if (pollTimer) return;
+  pollTick();
+  pollTimer = setInterval(pollTick, 500);
+}
+
+function stopPolling() {
+  clearInterval(pollTimer);
+  pollTimer = null;
+}
+
+function initCompilePolling() {
+  fetch('/compile-queue').then(r => r.json()).then(data => {
+    compilingFiles = new Set(data.queued);
+    renderCurrentTree();
+    if (lastTreeCurrent && compilingFiles.has(lastTreeCurrent)) {
+      setActiveCompileState(data.compiling === lastTreeCurrent ? 'compiling' : 'queued');
+      startPolling();
+    }
+  });
 }
 
 errorPanel.addEventListener('keydown', (e) => {
@@ -196,6 +256,12 @@ function toggleWordWrap() {
 cm.setOption('extraKeys', {
   'Ctrl-A': 'selectAll',
   'Cmd-A': 'selectAll',
+  'Ctrl-F': 'findPersistent',
+  'Cmd-F': 'findPersistent',
+  'Ctrl-G': 'findNext',
+  'Cmd-G': 'findNext',
+  'Shift-Ctrl-G': 'findPrev',
+  'Shift-Cmd-G': 'findPrev',
   'Ctrl-B': (c) => wrapSelection(c, '\\textbf{', '}'),
   'Cmd-B': (c) => wrapSelection(c, '\\textbf{', '}'),
   'Ctrl-I': (c) => wrapSelection(c, '\\textit{', '}'),
@@ -323,7 +389,7 @@ function renderTree(node, container, currentFile, depth = 0, pathPrefix = '') {
       + (isTex ? ' tex-file' : '')
       + (isActive ? ' active' : '');
     row.style.paddingLeft = indent + 'px';
-    const icon = isActive && isCompiling ? '⏳ ' : (isTex ? '📄 ' : '　');
+    const icon = compilingFiles.has(f.path) ? '⏳ ' : (isTex ? '📄 ' : '　');
     row.textContent = icon + f.name;
     if (isTex) row.addEventListener('dblclick', () => selectFile(f.path));
     container.appendChild(row);
@@ -354,7 +420,7 @@ function loadTree() {
 }
 
 function selectFile(path) {
-  if (isCompiling && path === lastTreeCurrent) return;
+  if (activeCompileState !== 'idle' && path === lastTreeCurrent) return;
   if (uploadInProgress) return;
   if (isDirty && !confirm('Discard unsaved changes and open "' + path + '"?')) return;
   fetch('/select', { method: 'POST', body: path })
@@ -365,15 +431,22 @@ function selectFile(path) {
       errorPanel.classList.remove('visible');
       loadSource();
       setCurrentFileLabel(data.file);
-      document.getElementById('pdfFrame').src = '/pdf?t=' + Date.now();
-      status.className = 'ok';
-      status.textContent = 'opened';
       loadTree();
+
+      if (data.compile_state === 'idle') {
+        setActiveCompileState('idle');
+        document.getElementById('pdfFrame').src = '/pdf?t=' + Date.now();
+        status.className = 'ok';
+        status.textContent = 'opened';
+      } else {
+        setActiveCompileState(data.compile_state);
+        startPolling();
+      }
     });
 }
 
 fetch('/current').then(r => r.json()).then(data => setCurrentFileLabel(data.file));
-loadTree();
+loadTree().then(initCompilePolling);
 
 function triggerOpenFile() {
   if (isDirty && !confirm('Discard unsaved changes and open a different folder?')) return;

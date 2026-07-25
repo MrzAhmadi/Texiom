@@ -5,9 +5,13 @@
 <title>latexbuild editor</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/theme/material-darker.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/dialog/dialog.css">
 <link rel="stylesheet" href="/static/style.css">
 <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/stex/stex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/dialog/dialog.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/search/searchcursor.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/search/search.js"></script>
 </head>
 <body>
 <header id="toolbar">
@@ -82,6 +86,7 @@
   <div id="pdf-pane">
     <iframe id="pdfFrame" src="/pdf"></iframe>
     <pre id="errorPanel" tabindex="0"></pre>
+    <div id="compileOverlay"><div class="progress-bar"><div class="progress-bar-fill"></div></div></div>
   </div>
 </div>
 <div id="shortcutsModal">
@@ -105,6 +110,7 @@
       </div>
       <div class="shortcuts-group">
         <div class="shortcuts-group-title">Editing</div>
+        <div class="shortcut-row"><span class="shortcut-desc">Find in file</span><span class="shortcut-keys"><kbd class="mod-key">Ctrl</kbd>+<kbd>F</kbd></span></div>
         <div class="shortcut-row"><span class="shortcut-desc">Bold (\textbf)</span><span class="shortcut-keys"><kbd class="mod-key">Ctrl</kbd>+<kbd>B</kbd></span></div>
         <div class="shortcut-row"><span class="shortcut-desc">Italic (\textit)</span><span class="shortcut-keys"><kbd class="mod-key">Ctrl</kbd>+<kbd>I</kbd></span></div>
         <div class="shortcut-row"><span class="shortcut-desc">Toggle line comment</span><span class="shortcut-keys"><kbd class="mod-key">Ctrl</kbd>+<kbd>/</kbd></span></div>
