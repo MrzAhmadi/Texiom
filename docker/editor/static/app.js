@@ -532,6 +532,7 @@ const fileInput = document.getElementById('fileInput');
 const currentFileLabel = document.getElementById('currentFile');
 const sidebar = document.getElementById('sidebar');
 const sidebarCollapsed = document.getElementById('sidebarCollapsed');
+const sidebarDragDivider = document.getElementById('sidebarDragDivider');
 const sidebarCollapseBtn = document.getElementById('sidebarCollapseBtn');
 const sidebarExpandBtn = document.getElementById('sidebarExpandBtn');
 const fileTreeEl = document.getElementById('fileTree');
@@ -569,11 +570,13 @@ function resetToNoFileOpen() {
 
 function showSidebarExpanded() {
   sidebar.hidden = false;
+  sidebarDragDivider.hidden = false;
   sidebarCollapsed.hidden = true;
 }
 
 function showSidebarCollapsed() {
   sidebar.hidden = true;
+  sidebarDragDivider.hidden = true;
   sidebarCollapsed.hidden = false;
 }
 
@@ -617,6 +620,35 @@ window.addEventListener('mouseup', () => {
   document.body.style.cursor = '';
   document.body.style.userSelect = '';
   localStorage.setItem('latexbuild-editor-width', parseFloat(editorPane.style.width));
+});
+
+const savedSidebarWidth = parseFloat(localStorage.getItem('latexbuild-sidebar-width'));
+if (!isNaN(savedSidebarWidth)) sidebar.style.width = savedSidebarWidth + 'px';
+
+let sidebarDividerDragging = false;
+
+sidebarDragDivider.addEventListener('mousedown', (e) => {
+  sidebarDividerDragging = true;
+  sidebarDragDivider.classList.add('dragging');
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+  e.preventDefault();
+});
+
+window.addEventListener('mousemove', (e) => {
+  if (!sidebarDividerDragging) return;
+  const containerRect = containerEl.getBoundingClientRect();
+  const width = Math.min(500, Math.max(140, e.clientX - containerRect.left));
+  sidebar.style.width = width + 'px';
+});
+
+window.addEventListener('mouseup', () => {
+  if (!sidebarDividerDragging) return;
+  sidebarDividerDragging = false;
+  sidebarDragDivider.classList.remove('dragging');
+  document.body.style.cursor = '';
+  document.body.style.userSelect = '';
+  localStorage.setItem('latexbuild-sidebar-width', parseFloat(sidebar.style.width));
 });
 
 function buildTree(paths) {
@@ -703,9 +735,9 @@ function loadTree() {
     lastTreeCurrent = data.current;
     lastTreeTexFile = data.tex_file;
     renderCurrentTree();
-    if (!sidebarInitialized && data.files.length > 0) {
+    if (!sidebarInitialized) {
       sidebarInitialized = true;
-      showSidebarExpanded();
+      showSidebarCollapsed();
     }
   });
 }

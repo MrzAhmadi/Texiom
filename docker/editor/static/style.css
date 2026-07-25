@@ -178,14 +178,14 @@ body {
 }
 .CodeMirror { height: 100%; font-size: 14px; }
 
-#dragDivider {
+.drag-divider {
   width: 6px;
   flex-shrink: 0;
   height: 100%;
   cursor: col-resize;
   background: var(--border);
 }
-#dragDivider:hover, #dragDivider.dragging { background: var(--track-on); }
+.drag-divider:hover, .drag-divider.dragging { background: var(--track-on); }
 
 #pdfToolbar {
   flex-shrink: 0;
