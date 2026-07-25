@@ -248,9 +248,13 @@ const sessionSocket = new WebSocket(wsProtocol + location.host + '/ws');
 sessionSocket.onclose = markStopped;
 sessionSocket.onerror = markStopped;
 
+let loadSourceToken = 0;
+
 function loadSource() {
+  const token = ++loadSourceToken;
   suppressDirty = true;
   return fetch('/source').then(r => r.text()).then(t => {
+    if (token !== loadSourceToken) return;
     cm.setValue(t);
     suppressDirty = false;
   });
@@ -279,10 +283,18 @@ function compile(manual) {
     pdf_only: pdfOnlyToggle.checked ? '1' : '0',
     manual: manual ? '1' : '0',
   });
-  persistCurrentEditingFile()
-    .then(() => fetch('/compile?' + params.toString(), { method: 'POST' }))
-    .then(r => r.json())
+  const persist = isDirty ? persistCurrentEditingFile() : Promise.resolve({ ok: true });
+  persist
+    .then(persistData => {
+      if (!persistData.ok) {
+        status.className = 'err';
+        status.textContent = persistData.log || 'save failed';
+        return null;
+      }
+      return fetch('/compile?' + params.toString(), { method: 'POST' }).then(r => r.json());
+    })
     .then(data => {
+      if (!data) return;
       if (!data.ok) {
         status.className = 'err';
         status.textContent = data.log || 'compile request failed';
@@ -338,11 +350,13 @@ function pollTick() {
     compilingFiles = new Set(data.queued);
     renderCurrentTree();
 
-    const stillBusy = lastTreeTexFile && compilingFiles.has(lastTreeTexFile);
-    if (stillBusy) {
-      setActiveCompileState(data.compiling.includes(lastTreeTexFile) ? 'compiling' : 'queued');
-    } else if (activeCompileState !== 'idle') {
-      finishActiveCompile(lastTreeTexFile);
+    if (lastTreeCurrent === lastTreeTexFile) {
+      const stillBusy = lastTreeTexFile && compilingFiles.has(lastTreeTexFile);
+      if (stillBusy) {
+        setActiveCompileState(data.compiling.includes(lastTreeTexFile) ? 'compiling' : 'queued');
+      } else if (activeCompileState !== 'idle') {
+        finishActiveCompile(lastTreeTexFile);
+      }
     }
 
     if (compilingFiles.size === 0) stopPolling();
@@ -365,7 +379,9 @@ function initCompilePolling() {
     compilingFiles = new Set(data.queued);
     renderCurrentTree();
     if (lastTreeTexFile && compilingFiles.has(lastTreeTexFile)) {
-      setActiveCompileState(data.compiling.includes(lastTreeTexFile) ? 'compiling' : 'queued');
+      if (lastTreeCurrent === lastTreeTexFile) {
+        setActiveCompileState(data.compiling.includes(lastTreeTexFile) ? 'compiling' : 'queued');
+      }
       startPolling();
     }
   });
@@ -415,7 +431,11 @@ async function persistCurrentEditingFile() {
 
 function saveFile() {
   return persistCurrentEditingFile().then(data => {
-    if (!data.ok) return data;
+    if (!data.ok) {
+      status.className = 'err';
+      status.textContent = data.log || 'save failed';
+      return data;
+    }
     isDirty = false;
     if (data.diskWriteFailed) {
       status.className = 'err';
@@ -537,8 +557,69 @@ const sidebarCollapseBtn = document.getElementById('sidebarCollapseBtn');
 const sidebarExpandBtn = document.getElementById('sidebarExpandBtn');
 const fileTreeEl = document.getElementById('fileTree');
 const texOnlyToggle = document.getElementById('texOnlyToggle');
+const tabBarEl = document.getElementById('tabBar');
 let sidebarInitialized = false;
 let uploadInProgress = false;
+let openTabs = [];
+
+function renderTabBar() {
+  tabBarEl.innerHTML = '';
+  openTabs.forEach(path => {
+    const name = path.split('/').pop();
+    const isBib = name.toLowerCase().endsWith('.bib');
+    const isActive = path === lastTreeCurrent;
+
+    const tab = document.createElement('div');
+    tab.className = 'tab' + (isActive ? ' active' : '');
+    tab.title = path;
+    tab.addEventListener('click', () => {
+      if (path !== lastTreeCurrent) selectFile(path);
+    });
+
+    const icon = document.createElement('span');
+    icon.textContent = isBib ? '📚' : '📄';
+    tab.appendChild(icon);
+
+    const label = document.createElement('span');
+    label.className = 'tab-label';
+    label.textContent = name;
+    tab.appendChild(label);
+
+    const closeBtn = document.createElement('span');
+    closeBtn.className = 'tab-close';
+    closeBtn.textContent = '×';
+    closeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeTab(path);
+    });
+    tab.appendChild(closeBtn);
+
+    tabBarEl.appendChild(tab);
+  });
+}
+
+function openTab(path) {
+  if (!openTabs.includes(path)) openTabs.push(path);
+  renderTabBar();
+}
+
+function closeTab(path) {
+  const idx = openTabs.indexOf(path);
+  if (idx === -1) return;
+  const wasActive = path === lastTreeCurrent;
+  if (wasActive && isDirty && !confirm('Discard unsaved changes and close "' + path + '"?')) return;
+  openTabs.splice(idx, 1);
+  renderTabBar();
+  if (!wasActive) return;
+  const next = openTabs[idx] || openTabs[idx - 1];
+  if (next) {
+    isDirty = false;
+    selectFile(next);
+  } else {
+    resetToNoFileOpen();
+    loadTree();
+  }
+}
 
 texOnlyToggle.checked = localStorage.getItem('latexbuild-texonly') === '1';
 texOnlyToggle.addEventListener('change', () => {
@@ -551,6 +632,15 @@ function setCurrentFileLabel(name) {
   currentFileLabel.title = name || '';
 }
 
+function clearPdfView() {
+  pdfDoc = null;
+  pdfIsFresh = false;
+  updateStalePdfNotice();
+  pdfPageDivs = [];
+  if (pdfObserver) pdfObserver.disconnect();
+  pdfPagesEl.innerHTML = '';
+}
+
 function resetToNoFileOpen() {
   suppressDirty = true;
   cm.setValue('');
@@ -560,12 +650,9 @@ function resetToNoFileOpen() {
   errorPanel.classList.remove('visible');
   activeCompileState = 'idle';
   updateCompileOverlay();
-  pdfDoc = null;
-  pdfIsFresh = false;
-  updateStalePdfNotice();
-  pdfPageDivs = [];
-  if (pdfObserver) pdfObserver.disconnect();
-  pdfPagesEl.innerHTML = '';
+  clearPdfView();
+  openTabs = [];
+  renderTabBar();
 }
 
 function showSidebarExpanded() {
@@ -735,6 +822,7 @@ function loadTree() {
     lastTreeCurrent = data.current;
     lastTreeTexFile = data.tex_file;
     renderCurrentTree();
+    renderTabBar();
     if (!sidebarInitialized) {
       sidebarInitialized = true;
       showSidebarCollapsed();
@@ -742,21 +830,29 @@ function loadTree() {
   });
 }
 
+let selectRequestToken = 0;
+
 function selectFile(path) {
   if (activeCompileState !== 'idle' && path === lastTreeCurrent) return;
   if (uploadInProgress) return;
   if (isDirty && !confirm('Discard unsaved changes and open "' + path + '"?')) return;
+  const token = ++selectRequestToken;
   fetch('/select', { method: 'POST', body: path })
     .then(r => r.json())
     .then(async (data) => {
-      if (!data.ok) return;
+      if (!data.ok || token !== selectRequestToken) return;
       isDirty = false;
       errorPanel.classList.remove('visible');
       await loadSource();
+      if (token !== selectRequestToken) return;
       setCurrentFileLabel(data.file);
+      openTab(data.file);
       loadTree();
 
       if (!data.is_tex) {
+        activeCompileState = 'idle';
+        updateCompileOverlay();
+        clearPdfView();
         status.className = 'ok';
         status.textContent = 'opened';
         return;
@@ -777,7 +873,10 @@ function selectFile(path) {
 
 fetch('/current').then(r => r.json()).then(data => {
   setCurrentFileLabel(data.file);
-  if (data.file) refreshPdf(false, false);
+  if (data.file) {
+    openTab(data.file);
+    if (data.file === data.tex_file) refreshPdf(false, false);
+  }
 });
 loadTree().then(initCompilePolling);
 

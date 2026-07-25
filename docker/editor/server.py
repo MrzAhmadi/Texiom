@@ -225,7 +225,13 @@ async def save_tex(request: Request):
     if EDITING_FILE is None:
         return JSONResponse({"ok": False}, status_code=400)
     content = (await request.body()).decode()
-    full_editing_path().write_text(content)
+    path = full_editing_path()
+    if not content.strip() and path.exists() and path.stat().st_size > 0:
+        return JSONResponse(
+            {"ok": False, "log": "Refusing to overwrite a non-empty file with empty content."},
+            status_code=409,
+        )
+    path.write_text(content)
     return JSONResponse({"ok": True})
 
 

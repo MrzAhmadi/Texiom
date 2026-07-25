@@ -166,7 +166,13 @@ body {
 .tree-row.active { background: var(--track-on); color: #fff; opacity: 1; }
 .tree-children.collapsed { display: none; }
 
-#editor-pane { width: 50%; height: 100%; flex-shrink: 0; }
+#editor-pane {
+  width: 50%;
+  height: 100%;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
 #pdf-pane {
   flex: 1 1 auto;
   min-width: 0;
@@ -176,7 +182,41 @@ body {
   display: flex;
   flex-direction: column;
 }
-.CodeMirror { height: 100%; font-size: 14px; }
+.CodeMirror { flex: 1 1 auto; min-height: 0; font-size: 14px; }
+
+#tabBar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: stretch;
+  overflow-x: auto;
+  background: var(--toolbar-bg);
+  border-bottom: 1px solid var(--border);
+}
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 6px 6px 10px;
+  font-size: 12px;
+  font-family: "SFMono-Regular", Consolas, Menlo, monospace;
+  border-right: 1px solid var(--border);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  opacity: 0.7;
+  max-width: 200px;
+  flex-shrink: 0;
+}
+.tab:hover { opacity: 0.9; background: var(--button-bg); }
+.tab.active { opacity: 1; background: var(--bg); border-bottom-color: var(--track-on); }
+.tab-label { overflow: hidden; text-overflow: ellipsis; }
+.tab-close {
+  padding: 0 4px;
+  border-radius: 3px;
+  opacity: 0.6;
+}
+.tab-close:hover { opacity: 1; background: rgba(128, 128, 128, 0.35); }
 
 .drag-divider {
   width: 6px;
