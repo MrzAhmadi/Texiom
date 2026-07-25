@@ -12,6 +12,11 @@
 <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/dialog/dialog.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/search/searchcursor.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/search/search.js"></script>
+<script type="module">
+  import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs";
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
+  window.pdfjsLib = pdfjsLib;
+</script>
 </head>
 <body>
 <header id="toolbar">
@@ -84,7 +89,13 @@
   </div>
   <div id="editor-pane"><textarea id="editor"></textarea></div>
   <div id="pdf-pane">
-    <iframe id="pdfFrame" src="/pdf"></iframe>
+    <div id="pdfToolbar">
+      <button id="pdfZoomOut" class="icon-btn" title="Zoom out">&minus;</button>
+      <span id="pdfZoomLabel">100%</span>
+      <button id="pdfZoomIn" class="icon-btn" title="Zoom in">+</button>
+      <span class="pdf-hint">Ctrl+Click in source to jump to PDF &middot; double-click PDF to jump to source</span>
+    </div>
+    <div id="pdfScroll"><div id="pdfPages"></div></div>
     <pre id="errorPanel" tabindex="0"></pre>
     <div id="compileOverlay"><div class="progress-bar"><div class="progress-bar-fill"></div></div></div>
   </div>
@@ -101,6 +112,11 @@
         <div class="shortcut-row"><span class="shortcut-desc">Open file</span><span class="shortcut-keys"><kbd class="mod-key">Ctrl</kbd>+<kbd>O</kbd></span></div>
         <div class="shortcut-row"><span class="shortcut-desc">Save file</span><span class="shortcut-keys"><kbd class="mod-key">Ctrl</kbd>+<kbd>S</kbd></span></div>
         <div class="shortcut-row"><span class="shortcut-desc">Compile now</span><span class="shortcut-keys"><kbd class="mod-key">Ctrl</kbd>+<kbd>Enter</kbd></span></div>
+      </div>
+      <div class="shortcuts-group">
+        <div class="shortcuts-group-title">PDF sync</div>
+        <div class="shortcut-row"><span class="shortcut-desc">Jump source &rarr; PDF</span><span class="shortcut-keys"><kbd class="mod-key">Ctrl</kbd>+Click in editor</span></div>
+        <div class="shortcut-row"><span class="shortcut-desc">Jump PDF &rarr; source</span><span class="shortcut-keys">Double-click in PDF</span></div>
       </div>
       <div class="shortcuts-group">
         <div class="shortcuts-group-title">View</div>
@@ -128,6 +144,6 @@
     <div class="stopped-sub">Run <code>latexbuild --edit</code> again — this tab will resume automatically once it's back. A new tab may also open; you can close whichever one you don't need.</div>
   </div>
 </div>
-<script src="/static/app.js"></script>
+<script type="module" src="/static/app.js"></script>
 </body>
 </html>

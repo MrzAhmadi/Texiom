@@ -2,7 +2,9 @@
 import argparse
 import asyncio
 import os
+import re
 import shutil
+import subprocess
 from pathlib import Path
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
@@ -21,12 +23,7 @@ UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
 ACTIVE_ROOT = WORKSPACE_ROOT
 
 
-def first_tex_file(root):
-    candidates = sorted(root.rglob("*.tex"))
-    return candidates[0].relative_to(root) if candidates else None
-
-
-TEX_FILE = Path(args.file) if args.file else first_tex_file(ACTIVE_ROOT)
+TEX_FILE = Path(args.file) if args.file else None
 PDF_FILE = TEX_FILE.with_suffix(".pdf") if TEX_FILE else None
 
 AUX_EXTENSIONS = [
@@ -74,7 +71,7 @@ async def compile_worker():
         rel = Path(file_str)
         full = ACTIVE_ROOT / rel
         process = await asyncio.create_subprocess_exec(
-            "latexmk", "-pdf", "-interaction=nonstopmode", "-halt-on-error", rel.name,
+            "latexmk", "-pdf", "-synctex=1", "-interaction=nonstopmode", "-halt-on-error", rel.name,
             cwd=str(full.parent),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -126,19 +123,25 @@ def get_current():
     return JSONResponse({"file": str(TEX_FILE) if TEX_FILE else None})
 
 
+def is_hidden(relative_path):
+    return any(part.startswith(".") for part in relative_path.parts)
+
+
 @app.get("/tree")
 def get_tree():
     files = sorted(
         str(p.relative_to(ACTIVE_ROOT))
         for p in ACTIVE_ROOT.rglob("*")
-        if p.is_file() and not is_build_artifact(p)
+        if p.is_file()
+        and not is_build_artifact(p)
+        and not is_hidden(p.relative_to(ACTIVE_ROOT))
     )
     return JSONResponse({"files": files, "current": str(TEX_FILE) if TEX_FILE else None})
 
 
 def resolve_in_active_root(relative_str):
     relative = Path(relative_str)
-    if any(part.startswith(".") for part in relative.parts):
+    if is_hidden(relative):
         return None
     full_path = (ACTIVE_ROOT / relative).resolve()
     if os.path.commonpath([str(ACTIVE_ROOT), str(full_path)]) != str(ACTIVE_ROOT):
@@ -215,7 +218,9 @@ async def compile_tex(request: Request):
     file_str = str(TEX_FILE)
     content = (await request.body()).decode()
     full_tex_path().write_text(content)
-    compile_pdf_only[file_str] = request.query_params.get("pdf_only") == "1"
+    manual = request.query_params.get("manual") == "1"
+    pdf_only = request.query_params.get("pdf_only") == "1"
+    compile_pdf_only[file_str] = pdf_only and manual
     if file_str in queued_files:
         dirty_during_compile.add(file_str)
     else:
@@ -239,6 +244,44 @@ def compile_status(file: str):
 @app.get("/compile-queue")
 def get_compile_queue():
     return JSONResponse({"compiling": compiling_now, "queued": sorted(queued_files)})
+
+
+def run_synctex(args):
+    result = subprocess.run(
+        ["synctex", *args],
+        capture_output=True, text=True, cwd=str(full_tex_path().parent),
+    )
+    data = {}
+    for line in result.stdout.splitlines():
+        match = re.match(r"^(\w+):(.*)$", line)
+        if match:
+            data[match.group(1)] = match.group(2)
+    return data
+
+
+@app.get("/synctex/forward")
+def synctex_forward(line: int, column: int = 1):
+    if TEX_FILE is None or not full_pdf_path().exists():
+        return JSONResponse({"ok": False}, status_code=400)
+    data = run_synctex(["view", "-i", f"{line}:{column}:{full_tex_path()}", "-o", str(full_pdf_path())])
+    if "Page" not in data:
+        return JSONResponse({"ok": False}, status_code=404)
+    return JSONResponse({
+        "ok": True,
+        "page": int(data["Page"]),
+        "x": float(data.get("x", 0)),
+        "y": float(data.get("y", 0)),
+    })
+
+
+@app.get("/synctex/inverse")
+def synctex_inverse(page: int, x: float, y: float):
+    if TEX_FILE is None or not full_pdf_path().exists():
+        return JSONResponse({"ok": False}, status_code=400)
+    data = run_synctex(["edit", "-o", f"{page}:{x}:{y}:{full_pdf_path()}"])
+    if "Line" not in data:
+        return JSONResponse({"ok": False}, status_code=404)
+    return JSONResponse({"ok": True, "line": int(data["Line"]), "column": int(data.get("Column", -1))})
 
 
 @app.get("/pdf")

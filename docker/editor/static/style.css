@@ -167,9 +167,70 @@ body {
 .tree-children.collapsed { display: none; }
 
 #editor-pane { width: 50%; height: 100%; }
-#pdf-pane { width: 50%; height: 100%; background: var(--bg); position: relative; }
-#pdf-pane iframe { width: 100%; height: 100%; border: none; }
+#pdf-pane {
+  width: 50%;
+  height: 100%;
+  background: var(--bg);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
 .CodeMirror { height: 100%; font-size: 14px; }
+
+#pdfToolbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  background: var(--toolbar-bg);
+}
+#pdfToolbar .icon-btn { font-size: 14px; padding: 1px 8px; }
+#pdfZoomLabel { min-width: 38px; text-align: center; opacity: 0.75; }
+.pdf-hint { margin-left: 10px; opacity: 0.5; font-size: 11px; }
+
+#pdfScroll {
+  flex: 1;
+  overflow: auto;
+  background: var(--pdf-backdrop);
+}
+:root { --pdf-backdrop: #6e6e6e; }
+:root[data-theme="dark"] { --pdf-backdrop: #1a1a1a; }
+
+#pdfPages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 14px 0;
+}
+.pdf-page {
+  position: relative;
+  margin: 0 0 14px;
+  background: #ffffff;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
+  cursor: text;
+}
+.pdf-page canvas { display: block; }
+
+.sync-marker {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border-radius: 50%;
+  background: rgba(220, 50, 50, 0.55);
+  pointer-events: none;
+  animation: sync-pulse 0.9s ease-out forwards;
+}
+@keyframes sync-pulse {
+  0% { transform: scale(0.4); opacity: 1; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+.CodeMirror .sync-flash { background: rgba(46, 125, 50, 0.28); transition: background 0.6s ease-out; }
 
 #errorPanel {
   display: none;

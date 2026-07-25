@@ -42,6 +42,158 @@ darkToggle.addEventListener('change', () => {
   localStorage.setItem('latexbuild-theme', isDark ? 'dark' : 'light');
 });
 
+const pdfZoomInBtn = document.getElementById('pdfZoomIn');
+const pdfZoomOutBtn = document.getElementById('pdfZoomOut');
+const pdfZoomLabel = document.getElementById('pdfZoomLabel');
+const pdfScrollEl = document.getElementById('pdfScroll');
+const pdfPagesEl = document.getElementById('pdfPages');
+
+const PDF_BASE_SCALE = 1.25;
+let pdfScale = PDF_BASE_SCALE;
+let pdfDoc = null;
+let pdfPageDivs = [];
+let pdfObserver = null;
+
+function capturePdfScrollPosition() {
+  if (!pdfPageDivs.length) return null;
+  const scrollTop = pdfScrollEl.scrollTop;
+  for (let i = 0; i < pdfPageDivs.length; i++) {
+    const wrapper = pdfPageDivs[i];
+    const top = wrapper.offsetTop;
+    const bottom = top + wrapper.offsetHeight;
+    if (bottom > scrollTop) return { page: i + 1, offset: scrollTop - top };
+  }
+  return null;
+}
+
+function restorePdfScrollPosition(saved) {
+  if (!saved) return;
+  const wrapper = pdfPageDivs[saved.page - 1];
+  if (!wrapper) return;
+  pdfScrollEl.scrollTop = wrapper.offsetTop + saved.offset;
+}
+
+async function renderPdfPage(pageNumber) {
+  const wrapper = pdfPageDivs[pageNumber - 1];
+  if (!wrapper || wrapper.dataset.rendered === '1') return;
+  wrapper.dataset.rendered = '1';
+  const page = await pdfDoc.getPage(pageNumber);
+  const viewport = page.getViewport({ scale: pdfScale });
+  const canvas = document.createElement('canvas');
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.ceil(viewport.width * dpr);
+  canvas.height = Math.ceil(viewport.height * dpr);
+  canvas.style.width = viewport.width + 'px';
+  canvas.style.height = viewport.height + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  wrapper.innerHTML = '';
+  wrapper.appendChild(canvas);
+  await page.render({ canvasContext: ctx, viewport }).promise;
+}
+
+async function layoutPdfPages(preserveScroll) {
+  const saved = preserveScroll ? capturePdfScrollPosition() : null;
+  if (pdfObserver) pdfObserver.disconnect();
+  pdfPagesEl.innerHTML = '';
+  pdfPageDivs = [];
+
+  for (let i = 1; i <= pdfDoc.numPages; i++) {
+    const page = await pdfDoc.getPage(i);
+    const viewport = page.getViewport({ scale: pdfScale });
+    const wrapper = document.createElement('div');
+    wrapper.className = 'pdf-page';
+    wrapper.dataset.pageNumber = String(i);
+    wrapper.style.width = viewport.width + 'px';
+    wrapper.style.height = viewport.height + 'px';
+    wrapper.addEventListener('dblclick', (e) => onPdfDoubleClick(e, i, wrapper));
+    pdfPagesEl.appendChild(wrapper);
+    pdfPageDivs.push(wrapper);
+  }
+
+  pdfObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) renderPdfPage(Number(entry.target.dataset.pageNumber));
+    });
+  }, { root: pdfScrollEl, rootMargin: '800px 0px' });
+  pdfPageDivs.forEach(w => pdfObserver.observe(w));
+
+  if (saved) restorePdfScrollPosition(saved);
+}
+
+function setPdfZoomLabel() {
+  pdfZoomLabel.textContent = Math.round((pdfScale / PDF_BASE_SCALE) * 100) + '%';
+}
+
+function setPdfZoom(scale) {
+  pdfScale = Math.min(3, Math.max(0.5, scale));
+  setPdfZoomLabel();
+  if (pdfDoc) layoutPdfPages(true);
+}
+
+pdfZoomInBtn.addEventListener('click', () => setPdfZoom(pdfScale + 0.15));
+pdfZoomOutBtn.addEventListener('click', () => setPdfZoom(pdfScale - 0.15));
+setPdfZoomLabel();
+
+async function refreshPdf(preserveScroll) {
+  if (!window.pdfjsLib) return;
+  const url = '/pdf?t=' + Date.now();
+  try {
+    pdfDoc = await window.pdfjsLib.getDocument(url).promise;
+    await layoutPdfPages(preserveScroll !== false);
+  } catch (e) {
+    /* no pdf available yet */
+  }
+}
+
+function onPdfDoubleClick(e, pageNumber, wrapper) {
+  const rect = wrapper.getBoundingClientRect();
+  const pdfX = (e.clientX - rect.left) / pdfScale;
+  const pdfY = (e.clientY - rect.top) / pdfScale;
+  fetch(`/synctex/inverse?page=${pageNumber}&x=${pdfX}&y=${pdfY}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) jumpEditorToLine(data.line);
+    });
+}
+
+function jumpEditorToLine(line) {
+  const lineIndex = Math.max(0, line - 1);
+  cm.setCursor({ line: lineIndex, ch: 0 });
+  cm.scrollIntoView({ line: lineIndex, ch: 0 }, 120);
+  cm.focus();
+  cm.addLineClass(lineIndex, 'background', 'sync-flash');
+  setTimeout(() => cm.removeLineClass(lineIndex, 'background', 'sync-flash'), 700);
+}
+
+function forwardSearch(line, column) {
+  fetch(`/synctex/forward?line=${line}&column=${column}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) scrollPdfToPosition(data.page, data.x, data.y);
+    });
+}
+
+function scrollPdfToPosition(page, x, y) {
+  const wrapper = pdfPageDivs[page - 1];
+  if (!wrapper) return;
+  const cssX = x * pdfScale;
+  const cssY = y * pdfScale;
+  pdfScrollEl.scrollTop = Math.max(0, wrapper.offsetTop + cssY - pdfScrollEl.clientHeight / 3);
+  const marker = document.createElement('div');
+  marker.className = 'sync-marker';
+  marker.style.left = cssX + 'px';
+  marker.style.top = cssY + 'px';
+  wrapper.appendChild(marker);
+  setTimeout(() => marker.remove(), 900);
+}
+
+cm.getWrapperElement().addEventListener('mousedown', (e) => {
+  if (!(e.ctrlKey || e.metaKey)) return;
+  const pos = cm.coordsChar({ left: e.clientX, top: e.clientY });
+  forwardSearch(pos.line + 1, pos.ch + 1);
+});
+
 const stoppedOverlay = document.getElementById('stoppedOverlay');
 const compileNowBtn = document.getElementById('compileNow');
 
@@ -85,19 +237,36 @@ let debounceTimer = null;
 cm.on('change', () => {
   if (!suppressDirty) isDirty = true;
   if (!liveToggle.checked) return;
+  if (!lastTreeCurrent) return;
   clearTimeout(debounceTimer);
   status.className = 'busy';
   status.textContent = 'editing...';
   debounceTimer = setTimeout(compile, 700);
 });
 
-document.getElementById('compileNow').addEventListener('click', compile);
+document.getElementById('compileNow').addEventListener('click', () => compile(true));
 
-function compile() {
+function compile(manual) {
   status.className = 'busy';
   status.textContent = 'building...';
-  fetch('/compile?pdf_only=' + (pdfOnlyToggle.checked ? '1' : '0'), { method: 'POST', body: cm.getValue() })
-    .then(() => startPolling());
+  const params = new URLSearchParams({
+    pdf_only: pdfOnlyToggle.checked ? '1' : '0',
+    manual: manual ? '1' : '0',
+  });
+  fetch('/compile?' + params.toString(), { method: 'POST', body: cm.getValue() })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok) {
+        status.className = 'err';
+        status.textContent = data.log || 'compile request failed';
+        return;
+      }
+      startPolling();
+    })
+    .catch(() => {
+      status.className = 'err';
+      status.textContent = 'compile request failed';
+    });
 }
 
 function updateCompileOverlay() {
@@ -127,7 +296,7 @@ function finishActiveCompile(file) {
         status.className = 'ok';
         status.textContent = 'built';
         errorPanel.classList.remove('visible');
-        document.getElementById('pdfFrame').src = '/pdf?t=' + Date.now();
+        refreshPdf(true);
       } else {
         status.className = 'err';
         status.textContent = 'build failed';
@@ -191,9 +360,22 @@ errorPanel.addEventListener('keydown', (e) => {
 function saveFile() {
   return fetch('/save', { method: 'POST', body: cm.getValue() })
     .then(r => r.json())
-    .then(data => {
-      if (data.ok) {
-        isDirty = false;
+    .then(async (data) => {
+      if (!data.ok) return data;
+      isDirty = false;
+      const handle = activeFileHandles.get(lastTreeCurrent);
+      if (handle) {
+        try {
+          const writable = await handle.createWritable();
+          await writable.write(cm.getValue());
+          await writable.close();
+          status.className = 'ok';
+          status.textContent = 'saved to disk';
+        } catch (e) {
+          status.className = 'err';
+          status.textContent = 'saved (could not write host file)';
+        }
+      } else {
         status.className = 'ok';
         status.textContent = 'saved';
       }
@@ -268,8 +450,8 @@ cm.setOption('extraKeys', {
   'Cmd-I': (c) => wrapSelection(c, '\\textit{', '}'),
   'Ctrl-/': toggleLineComment,
   'Cmd-/': toggleLineComment,
-  'Ctrl-Enter': () => compile(),
-  'Cmd-Enter': () => compile(),
+  'Ctrl-Enter': () => compile(true),
+  'Cmd-Enter': () => compile(true),
   'Ctrl-=': () => zoomEditor(1),
   'Cmd-=': () => zoomEditor(1),
   'Ctrl--': () => zoomEditor(-1),
@@ -316,8 +498,8 @@ texOnlyToggle.addEventListener('change', () => {
 });
 
 function setCurrentFileLabel(name) {
-  currentFileLabel.textContent = name;
-  currentFileLabel.title = name;
+  currentFileLabel.textContent = name || 'No file open';
+  currentFileLabel.title = name || '';
 }
 
 function showSidebarExpanded() {
@@ -435,7 +617,7 @@ function selectFile(path) {
 
       if (data.compile_state === 'idle') {
         setActiveCompileState('idle');
-        document.getElementById('pdfFrame').src = '/pdf?t=' + Date.now();
+        refreshPdf(false);
         status.className = 'ok';
         status.textContent = 'opened';
       } else {
@@ -445,15 +627,91 @@ function selectFile(path) {
     });
 }
 
-fetch('/current').then(r => r.json()).then(data => setCurrentFileLabel(data.file));
+fetch('/current').then(r => r.json()).then(data => {
+  setCurrentFileLabel(data.file);
+  if (data.file) refreshPdf(false);
+});
 loadTree().then(initCompilePolling);
+
+let activeFileHandles = new Map();
+const supportsFileSystemAccess = 'showDirectoryPicker' in window;
+
+if (supportsFileSystemAccess) {
+  openFileBtn.title = 'Open a project folder from your computer (includes images, .bib, etc.) '
+    + '— Ctrl+S saves directly back to these files on disk.';
+} else {
+  openFileBtn.title = 'Open a project folder from your computer (includes images, .bib, etc.) '
+    + '— this browser only supports uploading a copy; Ctrl+S saves within the session only.';
+}
 
 function triggerOpenFile() {
   if (isDirty && !confirm('Discard unsaved changes and open a different folder?')) return;
-  fileInput.click();
+  if (supportsFileSystemAccess) {
+    openViaFileSystemAccess();
+  } else {
+    fileInput.click();
+  }
 }
 
 openFileBtn.addEventListener('click', triggerOpenFile);
+
+async function collectDirectoryEntries(dirHandle, prefix) {
+  const results = [];
+  for await (const [name, handle] of dirHandle.entries()) {
+    if (name.startsWith('.')) continue;
+    const relPath = prefix ? prefix + '/' + name : name;
+    if (handle.kind === 'directory') {
+      results.push(...await collectDirectoryEntries(handle, relPath));
+    } else {
+      results.push({ path: relPath, handle });
+    }
+  }
+  return results;
+}
+
+async function openViaFileSystemAccess() {
+  let dirHandle;
+  try {
+    dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+  } catch (e) {
+    return;
+  }
+
+  uploadInProgress = true;
+  compileNowBtn.disabled = true;
+  openFileBtn.disabled = true;
+  status.className = 'busy';
+  status.textContent = 'clearing workspace...';
+
+  await fetch('/clear-workspace', { method: 'POST' });
+  activeFileHandles = new Map();
+
+  status.textContent = 'reading folder...';
+  const entries = await collectDirectoryEntries(dirHandle, '');
+
+  let uploaded = 0;
+  for (const { path, handle } of entries) {
+    const file = await handle.getFile();
+    await fetch('/upload?name=' + encodeURIComponent(path), { method: 'POST', body: file });
+    activeFileHandles.set(path, handle);
+    uploaded++;
+    status.textContent = 'uploading ' + uploaded + '/' + entries.length + '...';
+  }
+
+  uploadInProgress = false;
+  compileNowBtn.disabled = false;
+  openFileBtn.disabled = false;
+
+  const texPaths = entries.map(e => e.path).filter(p => p.toLowerCase().endsWith('.tex')).sort();
+
+  if (texPaths.length > 0) {
+    selectFile(texPaths[0]);
+  } else {
+    loadTree();
+    status.className = 'err';
+    status.textContent = 'no .tex file found';
+  }
+}
 
 fileInput.addEventListener('change', async () => {
   const files = Array.from(fileInput.files);
@@ -467,6 +725,7 @@ fileInput.addEventListener('change', async () => {
   status.textContent = 'clearing workspace...';
 
   await fetch('/clear-workspace', { method: 'POST' });
+  activeFileHandles = new Map();
 
   const relPathOf = (f) => f.webkitRelativePath.split('/').slice(1).join('/');
   const isHidden = (rel) => rel.split('/').some(part => part.startsWith('.'));
