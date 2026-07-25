@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install --break-system-packages --no-cache-dir fastapi uvicorn
+RUN pip3 install --break-system-packages --no-cache-dir fastapi "uvicorn[standard]"
 
 COPY action-entrypoint.sh /usr/local/bin/latexbuild-action-entrypoint
 RUN chmod +x /usr/local/bin/latexbuild-action-entrypoint

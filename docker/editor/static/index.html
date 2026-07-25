@@ -13,6 +13,16 @@
 <header id="toolbar">
   <div class="toolbar-brand">latexbuild</div>
 
+  <div class="toolbar-divider"></div>
+
+  <div class="toolbar-group">
+    <button id="openFileBtn" class="btn" title="Open a project folder from your computer (includes images, .bib, etc.)">📂 Open</button>
+    <input type="file" id="fileInput" webkitdirectory directory multiple hidden>
+    <span id="currentFile" class="current-file"></span>
+  </div>
+
+  <div class="toolbar-divider"></div>
+
   <div class="toolbar-group">
     <label class="toggle">
       <input type="checkbox" id="liveToggle" checked>
@@ -20,6 +30,17 @@
       <span class="toggle-label">Live preview</span>
     </label>
     <button id="compileNow" class="btn">Compile now</button>
+    <span class="toggle-with-hint">
+      <label class="toggle">
+        <input type="checkbox" id="pdfOnlyToggle">
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        <span class="toggle-label">PDF only</span>
+      </label>
+      <span class="info-icon" tabindex="0">
+        i
+        <span class="info-tooltip">Deletes auxiliary build files (.aux, .log, .fls, .fdb_latexmk, etc.) after each successful build, keeping only the .pdf next to your .tex file.</span>
+      </span>
+    </span>
   </div>
 
   <div class="toolbar-divider"></div>
@@ -32,13 +53,74 @@
     </label>
   </div>
 
+  <div class="toolbar-divider"></div>
+
+  <div class="toolbar-group">
+    <button id="shortcutsBtn" class="btn" title="Keyboard shortcuts">⌨ Shortcuts</button>
+  </div>
+
   <div class="toolbar-spacer"></div>
 
   <div id="status" class="ok">ready</div>
 </header>
 <div id="container">
+  <div id="sidebarCollapsed" hidden>
+    <button id="sidebarExpandBtn" class="icon-btn" title="Show project files">&rsaquo;</button>
+  </div>
+  <div id="sidebar" hidden>
+    <div class="sidebar-header">
+      <span>Project files</span>
+      <button id="sidebarCollapseBtn" class="icon-btn" title="Hide project files">&lsaquo;</button>
+    </div>
+    <label class="tex-only-row">
+      <input type="checkbox" id="texOnlyToggle">
+      <span>.tex files only</span>
+    </label>
+    <div id="fileTree"></div>
+  </div>
   <div id="editor-pane"><textarea id="editor"></textarea></div>
-  <div id="pdf-pane"><iframe id="pdfFrame" src="/pdf"></iframe></div>
+  <div id="pdf-pane">
+    <iframe id="pdfFrame" src="/pdf"></iframe>
+    <pre id="errorPanel" tabindex="0"></pre>
+  </div>
+</div>
+<div id="shortcutsModal">
+  <div class="shortcuts-panel">
+    <div class="shortcuts-header">
+      <span>Keyboard shortcuts</span>
+      <button id="shortcutsClose" class="icon-btn" aria-label="Close">&times;</button>
+    </div>
+    <div class="shortcuts-list">
+      <div class="shortcuts-group">
+        <div class="shortcuts-group-title">File</div>
+        <div class="shortcut-row"><span class="shortcut-desc">Open file</span><span class="shortcut-keys"><kbd class="mod-key">Ctrl</kbd>+<kbd>O</kbd></span></div>
+        <div class="shortcut-row"><span class="shortcut-desc">Save file</span><span class="shortcut-keys"><kbd class="mod-key">Ctrl</kbd>+<kbd>S</kbd></span></div>
+        <div class="shortcut-row"><span class="shortcut-desc">Compile now</span><span class="shortcut-keys"><kbd class="mod-key">Ctrl</kbd>+<kbd>Enter</kbd></span></div>
+      </div>
+      <div class="shortcuts-group">
+        <div class="shortcuts-group-title">View</div>
+        <div class="shortcut-row"><span class="shortcut-desc">Toggle word wrap</span><span class="shortcut-keys"><kbd class="alt-key">Alt</kbd>+<kbd>Z</kbd></span></div>
+        <div class="shortcut-row"><span class="shortcut-desc">Zoom in / out / reset</span><span class="shortcut-keys"><kbd class="mod-key">Ctrl</kbd>+<kbd>=</kbd> / <kbd class="mod-key">Ctrl</kbd>+<kbd>-</kbd> / <kbd class="mod-key">Ctrl</kbd>+<kbd>0</kbd></span></div>
+        <div class="shortcut-row"><span class="shortcut-desc">Show this menu</span><span class="shortcut-keys"><kbd>F1</kbd></span></div>
+      </div>
+      <div class="shortcuts-group">
+        <div class="shortcuts-group-title">Editing</div>
+        <div class="shortcut-row"><span class="shortcut-desc">Bold (\textbf)</span><span class="shortcut-keys"><kbd class="mod-key">Ctrl</kbd>+<kbd>B</kbd></span></div>
+        <div class="shortcut-row"><span class="shortcut-desc">Italic (\textit)</span><span class="shortcut-keys"><kbd class="mod-key">Ctrl</kbd>+<kbd>I</kbd></span></div>
+        <div class="shortcut-row"><span class="shortcut-desc">Toggle line comment</span><span class="shortcut-keys"><kbd class="mod-key">Ctrl</kbd>+<kbd>/</kbd></span></div>
+        <div class="shortcut-row"><span class="shortcut-desc">Undo / redo</span><span class="shortcut-keys"><kbd class="mod-key">Ctrl</kbd>+<kbd>Z</kbd> / <kbd class="mod-key">Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span></div>
+        <div class="shortcut-row"><span class="shortcut-desc">Select all</span><span class="shortcut-keys"><kbd class="mod-key">Ctrl</kbd>+<kbd>A</kbd></span></div>
+        <div class="shortcut-row"><span class="shortcut-desc">Indent / outdent</span><span class="shortcut-keys"><kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd></span></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="stoppedOverlay">
+  <div class="stopped-box">
+    <div class="stopped-icon">&#9209;</div>
+    <div class="stopped-title">Session stopped</div>
+    <div class="stopped-sub">Run <code>latexbuild --edit</code> again — this tab will resume automatically once it's back. A new tab may also open; you can close whichever one you don't need.</div>
+  </div>
 </div>
 <script src="/static/app.js"></script>
 </body>

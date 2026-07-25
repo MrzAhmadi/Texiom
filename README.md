@@ -94,21 +94,28 @@ spurious `latexmk` errors.
 
 ### Live browser editor
 
-For a rebuild-as-you-type experience with no save step at all, pass
-`--edit` instead:
+For a rebuild-as-you-type experience, pass `--edit` instead - a specific
+file isn't required, just a project directory (or nothing at all, which
+uses your current directory):
 
 ```bash
-latexbuild --dir /path/to/your/project --file paper.tex --edit
+latexbuild --dir /path/to/your/project --edit
 ```
 
 This opens a browser split in two: your `.tex` source on the left, the
-compiled PDF on the right. Every edit recompiles automatically (debounced
-briefly after you stop typing) and refreshes the PDF - there's no file to
-save, no separate editor to keep in sync. Ctrl+C in the terminal stops it.
+compiled PDF on the right, with a file-tree sidebar for the project. Every
+edit recompiles automatically (debounced briefly after you stop typing)
+and refreshes the PDF. The toolbar also lets you compile manually, keep
+PDF-only output, switch to dark mode, or open a different project folder
+from your computer (dropping in any images/bibliography it needs, and
+letting you switch between `.tex` files in the sidebar) - see the in-app
+"⌨ Shortcuts" menu (or press F1) for the full list of keyboard shortcuts,
+including Ctrl+S to save. Ctrl+C in the terminal stops the session; the
+tab picks back up on its own once you run `--edit` again.
 
 It's a small local web server (source and PDF only ever touch
 `127.0.0.1`), not a general-purpose editor - no autocomplete, snippets, or
-extensions, just source on one side and the rendered result on the other.
+extensions beyond what's listed above.
 
 #### Rebuilding as you type, before you save (using your own editor instead)
 
@@ -139,8 +146,8 @@ Ctrl+S needed.
 
 | Flag              | Description                                                |
 |-------------------|-------------------------------------------------------------|
-| `-d, --dir DIR`   | Directory containing the `.tex` file                       |
-| `-f, --file FILE` | Name of the `.tex` file (`.tex` extension optional)         |
+| `-d, --dir DIR`   | Directory containing the `.tex` file (optional with `--edit`, which defaults to the current directory) |
+| `-f, --file FILE` | Name of the `.tex` file (`.tex` extension optional); optional with `--edit` |
 | `-t, --tag TAG`   | Docker image tag to use/build (default: `latexbuild`)         |
 | `-r, --rebuild`   | Force a fresh image build even if one already exists        |
 | `-p, --pdf-only`  | Remove `latexmk`'s auxiliary files after a successful build, leaving only the `.pdf` |
