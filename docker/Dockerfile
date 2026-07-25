@@ -27,7 +27,9 @@ RUN chmod +x /usr/local/bin/latexbuild-action-entrypoint
 COPY editor/ /opt/latexbuild-editor/
 
 ARG LATEXBUILD_VERSION=unknown
+ARG LATEXBUILD_DOCKER_HASH=unknown
 LABEL latexbuild.version="${LATEXBUILD_VERSION}"
+LABEL latexbuild.dockerhash="${LATEXBUILD_DOCKER_HASH}"
 
 WORKDIR /workspace
 

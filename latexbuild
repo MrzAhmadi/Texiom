@@ -89,20 +89,26 @@ if [[ ! -f "$TEX_DIR/$TEX_FILE" ]]; then
     exit 1
 fi
 
-IMAGE_VERSION="$(docker image inspect --format '{{ index .Config.Labels "latexbuild.version" }}' "$IMAGE_TAG" 2>/dev/null || true)"
+DOCKER_HASH="$(find "$DOCKER_DIR" -type f -not -path "$DOCKER_DIR/editor/*" -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1)"
+IMAGE_HASH="$(docker image inspect --format '{{ index .Config.Labels "latexbuild.dockerhash" }}' "$IMAGE_TAG" 2>/dev/null || true)"
 
-if [[ "$FORCE_REBUILD" -eq 1 ]] || [[ "$IMAGE_VERSION" != "$VERSION" ]]; then
-    echo "Building image '$IMAGE_TAG' (version $VERSION) from $DOCKER_DIR ..."
-    docker build --build-arg "LATEXBUILD_VERSION=$VERSION" -t "$IMAGE_TAG" -f "$DOCKER_DIR/Dockerfile" "$DOCKER_DIR"
+if [[ "$FORCE_REBUILD" -eq 1 ]] || [[ "$IMAGE_HASH" != "$DOCKER_HASH" ]]; then
+    echo "Building image '$IMAGE_TAG' from $DOCKER_DIR (build inputs changed) ..."
+    docker build \
+        --build-arg "LATEXBUILD_VERSION=$VERSION" \
+        --build-arg "LATEXBUILD_DOCKER_HASH=$DOCKER_HASH" \
+        -t "$IMAGE_TAG" -f "$DOCKER_DIR/Dockerfile" "$DOCKER_DIR"
 else
-    echo "Using existing image '$IMAGE_TAG' (version $VERSION)."
+    echo "Using existing image '$IMAGE_TAG' (build inputs unchanged)."
 fi
 
 if [[ "$EDIT_MODE" -eq 1 ]]; then
     echo "Starting live editor for '$TEX_FILE' at http://127.0.0.1:$EDIT_PORT (Ctrl+C to stop) ..."
     ( sleep 1; xdg-open "http://127.0.0.1:$EDIT_PORT" >/dev/null 2>&1 || open "http://127.0.0.1:$EDIT_PORT" >/dev/null 2>&1 || true ) &
-    docker run --rm -p "127.0.0.1:$EDIT_PORT:8000" -v "$TEX_DIR":/workspace -w /workspace "$IMAGE_TAG" \
-        python3 /opt/latexbuild-editor/server.py --file "$TEX_FILE"
+    docker run --rm -p "127.0.0.1:$EDIT_PORT:8000" \
+        -v "$TEX_DIR":/workspace -w /workspace \
+        -v "$DOCKER_DIR/editor":/opt/latexbuild-editor:ro \
+        "$IMAGE_TAG" python3 /opt/latexbuild-editor/server.py --file "$TEX_FILE"
     exit 0
 fi
 
