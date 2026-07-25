@@ -47,7 +47,7 @@
       </label>
       <span class="info-icon" tabindex="0">
         i
-        <span class="info-tooltip">Deletes auxiliary build files (.aux, .log, .fls, .fdb_latexmk, etc.) after each successful build, keeping only the .pdf next to your .tex file.</span>
+        <span class="info-tooltip">Deletes auxiliary build files (.aux, .log, .fls, .fdb_latexmk, etc.) after each successful build, keeping just the .pdf (plus the small .synctex.gz needed for PDF&harr;source jump navigation) next to your .tex file.</span>
       </span>
     </span>
   </div>
@@ -88,6 +88,7 @@
     <div id="fileTree"></div>
   </div>
   <div id="editor-pane"><textarea id="editor"></textarea></div>
+  <div id="dragDivider" title="Drag to resize"></div>
   <div id="pdf-pane">
     <div id="pdfToolbar">
       <button id="pdfZoomOut" class="icon-btn" title="Zoom out">&minus;</button>
@@ -95,9 +96,10 @@
       <button id="pdfZoomIn" class="icon-btn" title="Zoom in">+</button>
       <span class="pdf-hint">Ctrl+Click in source to jump to PDF &middot; double-click PDF to jump to source</span>
     </div>
-    <div id="pdfScroll"><div id="pdfPages"></div></div>
+    <div id="stalePdfNotice">This is the previously generated PDF &mdash; it may be out of date, and some features (like PDF&harr;source jump) may not be available until it's rebuilt.</div>
+    <div id="pdfScroll" tabindex="0"><div id="pdfPages"></div></div>
     <pre id="errorPanel" tabindex="0"></pre>
-    <div id="compileOverlay"><div class="progress-bar"><div class="progress-bar-fill"></div></div></div>
+    <div id="compileOverlay"><div class="spinner"></div></div>
   </div>
 </div>
 <div id="shortcutsModal">

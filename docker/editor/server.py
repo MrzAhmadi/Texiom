@@ -25,14 +25,15 @@ ACTIVE_ROOT = WORKSPACE_ROOT
 
 TEX_FILE = Path(args.file) if args.file else None
 PDF_FILE = TEX_FILE.with_suffix(".pdf") if TEX_FILE else None
+EDITING_FILE = TEX_FILE
 
 AUX_EXTENSIONS = [
     "aux", "log", "out", "toc", "lof", "lot", "fls", "fdb_latexmk",
-    "synctex.gz", "bbl", "blg", "bcf", "run.xml", "nav", "snm", "vrb",
+    "bbl", "blg", "bcf", "run.xml", "nav", "snm", "vrb",
 ]
 
 HIDDEN_TREE_SUFFIXES = AUX_EXTENSIONS + [
-    "auxlock", "xmpi", "bcf-SAVE-ERROR", "bbl-SAVE-ERROR",
+    "synctex.gz", "auxlock", "xmpi", "bcf-SAVE-ERROR", "bbl-SAVE-ERROR",
 ]
 
 
@@ -48,12 +49,18 @@ def full_pdf_path():
     return ACTIVE_ROOT / PDF_FILE
 
 
+def full_editing_path():
+    return ACTIVE_ROOT / EDITING_FILE
+
+
+WORKER_COUNT = min(4, os.cpu_count() or 1)
+
 compile_queue = asyncio.Queue()
 queued_files = set()
 dirty_during_compile = set()
 compile_results = {}
 compile_pdf_only = {}
-compiling_now = None
+compiling_now = set()
 
 
 def remove_aux_files():
@@ -63,10 +70,9 @@ def remove_aux_files():
 
 
 async def compile_worker():
-    global compiling_now
     while True:
         file_str = await compile_queue.get()
-        compiling_now = file_str
+        compiling_now.add(file_str)
         dirty_during_compile.discard(file_str)
         rel = Path(file_str)
         full = ACTIVE_ROOT / rel
@@ -84,7 +90,7 @@ async def compile_worker():
                 Path(f"{base}.{ext}").unlink(missing_ok=True)
         log = (stdout.decode(errors="replace") + stderr.decode(errors="replace"))[-4000:]
         compile_results[file_str] = {"ok": ok, "log": log}
-        compiling_now = None
+        compiling_now.discard(file_str)
         if file_str in dirty_during_compile:
             await compile_queue.put(file_str)
         else:
@@ -97,8 +103,9 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 @app.on_event("startup")
-async def start_compile_worker():
-    asyncio.create_task(compile_worker())
+async def start_compile_workers():
+    for _ in range(WORKER_COUNT):
+        asyncio.create_task(compile_worker())
 
 
 @app.middleware("http")
@@ -115,12 +122,15 @@ def index():
 
 @app.get("/source", response_class=PlainTextResponse)
 def get_source():
-    return full_tex_path().read_text() if TEX_FILE else ""
+    return full_editing_path().read_text() if EDITING_FILE else ""
 
 
 @app.get("/current")
 def get_current():
-    return JSONResponse({"file": str(TEX_FILE) if TEX_FILE else None})
+    return JSONResponse({
+        "file": str(EDITING_FILE) if EDITING_FILE else None,
+        "tex_file": str(TEX_FILE) if TEX_FILE else None,
+    })
 
 
 def is_hidden(relative_path):
@@ -136,7 +146,11 @@ def get_tree():
         and not is_build_artifact(p)
         and not is_hidden(p.relative_to(ACTIVE_ROOT))
     )
-    return JSONResponse({"files": files, "current": str(TEX_FILE) if TEX_FILE else None})
+    return JSONResponse({
+        "files": files,
+        "current": str(EDITING_FILE) if EDITING_FILE else None,
+        "tex_file": str(TEX_FILE) if TEX_FILE else None,
+    })
 
 
 def resolve_in_active_root(relative_str):
@@ -151,7 +165,7 @@ def resolve_in_active_root(relative_str):
 
 @app.post("/clear-workspace")
 def clear_workspace():
-    global TEX_FILE, PDF_FILE, ACTIVE_ROOT
+    global TEX_FILE, PDF_FILE, ACTIVE_ROOT, EDITING_FILE
     for entry in UPLOAD_ROOT.iterdir():
         if entry.is_dir():
             shutil.rmtree(entry)
@@ -160,6 +174,7 @@ def clear_workspace():
     ACTIVE_ROOT = UPLOAD_ROOT
     TEX_FILE = None
     PDF_FILE = None
+    EDITING_FILE = None
     queued_files.clear()
     dirty_during_compile.clear()
     compile_results.clear()
@@ -181,30 +196,36 @@ async def upload_tex(request: Request):
 
 @app.post("/select")
 async def select_file(request: Request):
-    global TEX_FILE, PDF_FILE
+    global TEX_FILE, PDF_FILE, EDITING_FILE
     resolved = resolve_in_active_root((await request.body()).decode().strip())
     if resolved is None:
         return JSONResponse({"ok": False}, status_code=400)
     relative, full_path = resolved
-    if relative.suffix != ".tex" or not full_path.is_file():
+    if relative.suffix not in (".tex", ".bib") or not full_path.is_file():
         return JSONResponse({"ok": False}, status_code=400)
+
+    EDITING_FILE = relative
+
+    if relative.suffix != ".tex":
+        return JSONResponse({"ok": True, "file": str(EDITING_FILE), "is_tex": False, "compile_state": "idle"})
+
     TEX_FILE = relative
     PDF_FILE = TEX_FILE.with_suffix(".pdf")
     file_str = str(TEX_FILE)
     if file_str in queued_files:
-        state = "compiling" if compiling_now == file_str else "queued"
+        state = "compiling" if file_str in compiling_now else "queued"
     else:
         remove_aux_files()
         state = "idle"
-    return JSONResponse({"ok": True, "file": file_str, "compile_state": state})
+    return JSONResponse({"ok": True, "file": file_str, "is_tex": True, "compile_state": state})
 
 
 @app.post("/save")
 async def save_tex(request: Request):
-    if TEX_FILE is None:
+    if EDITING_FILE is None:
         return JSONResponse({"ok": False}, status_code=400)
     content = (await request.body()).decode()
-    full_tex_path().write_text(content)
+    full_editing_path().write_text(content)
     return JSONResponse({"ok": True})
 
 
@@ -216,8 +237,6 @@ async def compile_tex(request: Request):
             status_code=400,
         )
     file_str = str(TEX_FILE)
-    content = (await request.body()).decode()
-    full_tex_path().write_text(content)
     manual = request.query_params.get("manual") == "1"
     pdf_only = request.query_params.get("pdf_only") == "1"
     compile_pdf_only[file_str] = pdf_only and manual
@@ -233,7 +252,7 @@ async def compile_tex(request: Request):
 @app.get("/compile-status")
 def compile_status(file: str):
     if file in queued_files:
-        state = "compiling" if compiling_now == file else "queued"
+        state = "compiling" if file in compiling_now else "queued"
         return JSONResponse({"state": state})
     result = compile_results.get(file)
     if result is None:
@@ -243,7 +262,7 @@ def compile_status(file: str):
 
 @app.get("/compile-queue")
 def get_compile_queue():
-    return JSONResponse({"compiling": compiling_now, "queued": sorted(queued_files)})
+    return JSONResponse({"compiling": sorted(compiling_now), "queued": sorted(queued_files)})
 
 
 def run_synctex(args):

@@ -47,12 +47,18 @@ const pdfZoomOutBtn = document.getElementById('pdfZoomOut');
 const pdfZoomLabel = document.getElementById('pdfZoomLabel');
 const pdfScrollEl = document.getElementById('pdfScroll');
 const pdfPagesEl = document.getElementById('pdfPages');
+const stalePdfNotice = document.getElementById('stalePdfNotice');
 
 const PDF_BASE_SCALE = 1.25;
 let pdfScale = PDF_BASE_SCALE;
 let pdfDoc = null;
 let pdfPageDivs = [];
 let pdfObserver = null;
+let pdfIsFresh = false;
+
+function updateStalePdfNotice() {
+  stalePdfNotice.classList.toggle('visible', pdfDoc !== null && !pdfIsFresh);
+}
 
 function capturePdfScrollPosition() {
   if (!pdfPageDivs.length) return null;
@@ -90,6 +96,16 @@ async function renderPdfPage(pageNumber) {
   wrapper.innerHTML = '';
   wrapper.appendChild(canvas);
   await page.render({ canvasContext: ctx, viewport }).promise;
+
+  const textLayerDiv = document.createElement('div');
+  textLayerDiv.className = 'textLayer';
+  wrapper.appendChild(textLayerDiv);
+  const textLayer = new window.pdfjsLib.TextLayer({
+    textContentSource: page.streamTextContent({ includeMarkedContent: true, disableNormalization: true }),
+    container: textLayerDiv,
+    viewport,
+  });
+  await textLayer.render();
 }
 
 async function layoutPdfPages(preserveScroll) {
@@ -135,14 +151,23 @@ pdfZoomInBtn.addEventListener('click', () => setPdfZoom(pdfScale + 0.15));
 pdfZoomOutBtn.addEventListener('click', () => setPdfZoom(pdfScale - 0.15));
 setPdfZoomLabel();
 
-async function refreshPdf(preserveScroll) {
+pdfScrollEl.addEventListener('wheel', (e) => {
+  if (!e.ctrlKey) return;
+  e.preventDefault();
+  setPdfZoom(pdfScale * (1 - e.deltaY * 0.0015));
+}, { passive: false });
+
+async function refreshPdf(preserveScroll, isFresh) {
   if (!window.pdfjsLib) return;
   const url = '/pdf?t=' + Date.now();
   try {
     pdfDoc = await window.pdfjsLib.getDocument(url).promise;
     await layoutPdfPages(preserveScroll !== false);
+    pdfIsFresh = !!isFresh;
+    updateStalePdfNotice();
   } catch (e) {
-    /* no pdf available yet */
+    pdfDoc = null;
+    updateStalePdfNotice();
   }
 }
 
@@ -235,7 +260,8 @@ loadSource();
 
 let debounceTimer = null;
 cm.on('change', () => {
-  if (!suppressDirty) isDirty = true;
+  if (suppressDirty) return;
+  isDirty = true;
   if (!liveToggle.checked) return;
   if (!lastTreeCurrent) return;
   clearTimeout(debounceTimer);
@@ -253,7 +279,8 @@ function compile(manual) {
     pdf_only: pdfOnlyToggle.checked ? '1' : '0',
     manual: manual ? '1' : '0',
   });
-  fetch('/compile?' + params.toString(), { method: 'POST', body: cm.getValue() })
+  persistCurrentEditingFile()
+    .then(() => fetch('/compile?' + params.toString(), { method: 'POST' }))
     .then(r => r.json())
     .then(data => {
       if (!data.ok) {
@@ -272,7 +299,6 @@ function compile(manual) {
 function updateCompileOverlay() {
   const busy = activeCompileState === 'queued' || activeCompileState === 'compiling';
   compileOverlay.classList.toggle('visible', busy);
-  if (busy) errorPanel.classList.remove('visible');
 }
 
 function setActiveCompileState(state) {
@@ -292,11 +318,11 @@ function finishActiveCompile(file) {
     .then(data => {
       if (data.state !== 'done') return;
       if (data.ok) {
-        isDirty = false;
+        if (lastTreeCurrent === file) isDirty = false;
         status.className = 'ok';
         status.textContent = 'built';
         errorPanel.classList.remove('visible');
-        refreshPdf(true);
+        refreshPdf(true, true);
       } else {
         status.className = 'err';
         status.textContent = 'build failed';
@@ -312,11 +338,11 @@ function pollTick() {
     compilingFiles = new Set(data.queued);
     renderCurrentTree();
 
-    const stillBusy = lastTreeCurrent && compilingFiles.has(lastTreeCurrent);
+    const stillBusy = lastTreeTexFile && compilingFiles.has(lastTreeTexFile);
     if (stillBusy) {
-      setActiveCompileState(data.compiling === lastTreeCurrent ? 'compiling' : 'queued');
+      setActiveCompileState(data.compiling.includes(lastTreeTexFile) ? 'compiling' : 'queued');
     } else if (activeCompileState !== 'idle') {
-      finishActiveCompile(lastTreeCurrent);
+      finishActiveCompile(lastTreeTexFile);
     }
 
     if (compilingFiles.size === 0) stopPolling();
@@ -338,8 +364,8 @@ function initCompilePolling() {
   fetch('/compile-queue').then(r => r.json()).then(data => {
     compilingFiles = new Set(data.queued);
     renderCurrentTree();
-    if (lastTreeCurrent && compilingFiles.has(lastTreeCurrent)) {
-      setActiveCompileState(data.compiling === lastTreeCurrent ? 'compiling' : 'queued');
+    if (lastTreeTexFile && compilingFiles.has(lastTreeTexFile)) {
+      setActiveCompileState(data.compiling.includes(lastTreeTexFile) ? 'compiling' : 'queued');
       startPolling();
     }
   });
@@ -357,30 +383,52 @@ errorPanel.addEventListener('keydown', (e) => {
   }
 });
 
+pdfScrollEl.addEventListener('keydown', (e) => {
+  const ctrl = e.ctrlKey || e.metaKey;
+  if (ctrl && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'a') {
+    e.preventDefault();
+    const range = document.createRange();
+    range.selectNodeContents(pdfPagesEl);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+});
+
+async function persistCurrentEditingFile() {
+  const content = cm.getValue();
+  const resp = await fetch('/save', { method: 'POST', body: content });
+  const data = await resp.json();
+  if (!data.ok) return data;
+  const handle = activeFileHandles.get(lastTreeCurrent);
+  if (handle) {
+    try {
+      const writable = await handle.createWritable();
+      await writable.write(content);
+      await writable.close();
+    } catch (e) {
+      return { ok: true, diskWriteFailed: true };
+    }
+  }
+  return data;
+}
+
 function saveFile() {
-  return fetch('/save', { method: 'POST', body: cm.getValue() })
-    .then(r => r.json())
-    .then(async (data) => {
-      if (!data.ok) return data;
-      isDirty = false;
-      const handle = activeFileHandles.get(lastTreeCurrent);
-      if (handle) {
-        try {
-          const writable = await handle.createWritable();
-          await writable.write(cm.getValue());
-          await writable.close();
-          status.className = 'ok';
-          status.textContent = 'saved to disk';
-        } catch (e) {
-          status.className = 'err';
-          status.textContent = 'saved (could not write host file)';
-        }
-      } else {
-        status.className = 'ok';
-        status.textContent = 'saved';
-      }
-      return data;
-    });
+  return persistCurrentEditingFile().then(data => {
+    if (!data.ok) return data;
+    isDirty = false;
+    if (data.diskWriteFailed) {
+      status.className = 'err';
+      status.textContent = 'saved (could not write host file)';
+    } else if (activeFileHandles.has(lastTreeCurrent)) {
+      status.className = 'ok';
+      status.textContent = 'saved to disk';
+    } else {
+      status.className = 'ok';
+      status.textContent = 'saved';
+    }
+    return data;
+  });
 }
 
 window.addEventListener('beforeunload', (e) => {
@@ -502,6 +550,23 @@ function setCurrentFileLabel(name) {
   currentFileLabel.title = name || '';
 }
 
+function resetToNoFileOpen() {
+  suppressDirty = true;
+  cm.setValue('');
+  suppressDirty = false;
+  isDirty = false;
+  setCurrentFileLabel(null);
+  errorPanel.classList.remove('visible');
+  activeCompileState = 'idle';
+  updateCompileOverlay();
+  pdfDoc = null;
+  pdfIsFresh = false;
+  updateStalePdfNotice();
+  pdfPageDivs = [];
+  if (pdfObserver) pdfObserver.disconnect();
+  pdfPagesEl.innerHTML = '';
+}
+
 function showSidebarExpanded() {
   sidebar.hidden = false;
   sidebarCollapsed.hidden = true;
@@ -514,6 +579,45 @@ function showSidebarCollapsed() {
 
 sidebarCollapseBtn.addEventListener('click', showSidebarCollapsed);
 sidebarExpandBtn.addEventListener('click', showSidebarExpanded);
+
+const editorPane = document.getElementById('editor-pane');
+const dragDivider = document.getElementById('dragDivider');
+const containerEl = document.getElementById('container');
+
+const savedEditorWidth = parseFloat(localStorage.getItem('latexbuild-editor-width'));
+if (!isNaN(savedEditorWidth)) editorPane.style.width = savedEditorWidth + '%';
+
+let dividerDragging = false;
+
+dragDivider.addEventListener('mousedown', (e) => {
+  dividerDragging = true;
+  dragDivider.classList.add('dragging');
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+  e.preventDefault();
+});
+
+window.addEventListener('mousemove', (e) => {
+  if (!dividerDragging) return;
+  const containerRect = containerEl.getBoundingClientRect();
+  const sidebarEl = sidebar.hidden ? sidebarCollapsed : sidebar;
+  const startX = sidebarEl.getBoundingClientRect().right;
+  const dividerWidth = dragDivider.getBoundingClientRect().width;
+  const availableWidth = containerRect.right - startX - dividerWidth;
+  const editorWidth = e.clientX - startX;
+  const percent = Math.min(80, Math.max(20, (editorWidth / availableWidth) * 100));
+  editorPane.style.width = percent + '%';
+  cm.refresh();
+});
+
+window.addEventListener('mouseup', () => {
+  if (!dividerDragging) return;
+  dividerDragging = false;
+  dragDivider.classList.remove('dragging');
+  document.body.style.cursor = '';
+  document.body.style.userSelect = '';
+  localStorage.setItem('latexbuild-editor-width', parseFloat(editorPane.style.width));
+});
 
 function buildTree(paths) {
   const root = {};
@@ -564,22 +668,26 @@ function renderTree(node, container, currentFile, depth = 0, pathPrefix = '') {
   });
 
   (node.__files || []).sort((a, b) => a.name.localeCompare(b.name)).forEach(f => {
-    const isTex = f.name.toLowerCase().endsWith('.tex');
+    const lower = f.name.toLowerCase();
+    const isTex = lower.endsWith('.tex');
+    const isBib = lower.endsWith('.bib');
+    const isEditable = isTex || isBib;
     const isActive = f.path === currentFile;
     const row = document.createElement('div');
     row.className = 'tree-row tree-file'
-      + (isTex ? ' tex-file' : '')
+      + (isEditable ? ' editable-file' : '')
       + (isActive ? ' active' : '');
     row.style.paddingLeft = indent + 'px';
-    const icon = compilingFiles.has(f.path) ? '⏳ ' : (isTex ? '📄 ' : '　');
+    const icon = compilingFiles.has(f.path) ? '⏳ ' : (isTex ? '📄 ' : isBib ? '📚 ' : '　');
     row.textContent = icon + f.name;
-    if (isTex) row.addEventListener('dblclick', () => selectFile(f.path));
+    if (isEditable) row.addEventListener('dblclick', () => selectFile(f.path));
     container.appendChild(row);
   });
 }
 
 let lastTreeFiles = [];
 let lastTreeCurrent = null;
+let lastTreeTexFile = null;
 
 function renderCurrentTree() {
   fileTreeEl.innerHTML = '';
@@ -593,6 +701,7 @@ function loadTree() {
   return fetch('/tree').then(r => r.json()).then(data => {
     lastTreeFiles = data.files;
     lastTreeCurrent = data.current;
+    lastTreeTexFile = data.tex_file;
     renderCurrentTree();
     if (!sidebarInitialized && data.files.length > 0) {
       sidebarInitialized = true;
@@ -607,19 +716,26 @@ function selectFile(path) {
   if (isDirty && !confirm('Discard unsaved changes and open "' + path + '"?')) return;
   fetch('/select', { method: 'POST', body: path })
     .then(r => r.json())
-    .then(data => {
+    .then(async (data) => {
       if (!data.ok) return;
       isDirty = false;
       errorPanel.classList.remove('visible');
-      loadSource();
+      await loadSource();
       setCurrentFileLabel(data.file);
       loadTree();
 
-      if (data.compile_state === 'idle') {
-        setActiveCompileState('idle');
-        refreshPdf(false);
+      if (!data.is_tex) {
         status.className = 'ok';
         status.textContent = 'opened';
+        return;
+      }
+
+      if (data.compile_state === 'idle') {
+        setActiveCompileState('idle');
+        refreshPdf(false, false);
+        status.className = 'ok';
+        status.textContent = 'opened';
+        if (liveToggle.checked) compile();
       } else {
         setActiveCompileState(data.compile_state);
         startPolling();
@@ -629,7 +745,7 @@ function selectFile(path) {
 
 fetch('/current').then(r => r.json()).then(data => {
   setCurrentFileLabel(data.file);
-  if (data.file) refreshPdf(false);
+  if (data.file) refreshPdf(false, false);
 });
 loadTree().then(initCompilePolling);
 
@@ -702,12 +818,14 @@ async function openViaFileSystemAccess() {
   compileNowBtn.disabled = false;
   openFileBtn.disabled = false;
 
-  const texPaths = entries.map(e => e.path).filter(p => p.toLowerCase().endsWith('.tex')).sort();
+  const texPaths = entries.map(e => e.path).filter(p => p.toLowerCase().endsWith('.tex'));
 
+  resetToNoFileOpen();
+  loadTree();
   if (texPaths.length > 0) {
-    selectFile(texPaths[0]);
+    status.className = 'ok';
+    status.textContent = 'opened';
   } else {
-    loadTree();
     status.className = 'err';
     status.textContent = 'no .tex file found';
   }
@@ -745,13 +863,14 @@ fileInput.addEventListener('change', async () => {
 
   const texPaths = files
     .map(relPathOf)
-    .filter(p => p && !isHidden(p) && p.toLowerCase().endsWith('.tex'))
-    .sort();
+    .filter(p => p && !isHidden(p) && p.toLowerCase().endsWith('.tex'));
 
+  resetToNoFileOpen();
+  loadTree();
   if (texPaths.length > 0) {
-    selectFile(texPaths[0]);
+    status.className = 'ok';
+    status.textContent = 'opened';
   } else {
-    loadTree();
     status.className = 'err';
     status.textContent = 'no .tex file found';
   }
