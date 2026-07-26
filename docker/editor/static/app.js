@@ -953,6 +953,7 @@ async function openViaFileSystemAccess() {
 
   resetToNoFileOpen();
   loadTree();
+  showSidebarExpanded();
   if (texPaths.length > 0) {
     status.className = 'ok';
     status.textContent = 'opened';
@@ -998,6 +999,7 @@ fileInput.addEventListener('change', async () => {
 
   resetToNoFileOpen();
   loadTree();
+  showSidebarExpanded();
   if (texPaths.length > 0) {
     status.className = 'ok';
     status.textContent = 'opened';
