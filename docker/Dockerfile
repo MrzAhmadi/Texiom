@@ -2,9 +2,13 @@ FROM texlive/texlive:latest-medium
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# scheme-medium doesn't include every document class; add the ones known to be
-# needed here. tlmgr makes it cheap to extend this list if another is missing.
-RUN tlmgr install ieeetran moderncv fontawesome6
+RUN success=0; \
+    for attempt in 1 2 3 4 5; do \
+      if tlmgr install ieeetran moderncv fontawesome6; then success=1; break; fi; \
+      echo "tlmgr install attempt $attempt failed, retrying in 20s..." >&2; \
+      sleep 20; \
+    done; \
+    [ "$success" = "1" ]
 
 RUN apt-get update && apt-get install -y \
     python3-pip \
