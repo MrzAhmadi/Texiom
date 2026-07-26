@@ -19,6 +19,9 @@ contents:
   - src: ./VERSION
     dst: /usr/lib/latexbuild/VERSION
 
+  - src: ./packaging/completions/latexbuild.bash
+    dst: /usr/share/bash-completion/completions/latexbuild
+
   - src: /usr/lib/latexbuild/latexbuild
     dst: /usr/bin/latexbuild
     type: symlink

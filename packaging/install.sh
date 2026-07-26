@@ -16,4 +16,8 @@ cp "$DIR/VERSION" /opt/latexbuild/VERSION
 chmod +x /opt/latexbuild/latexbuild
 ln -sf /opt/latexbuild/latexbuild /usr/local/bin/latexbuild
 
+if [ -f "$DIR/completions/latexbuild.bash" ] && [ -d /usr/share/bash-completion/completions ]; then
+  cp "$DIR/completions/latexbuild.bash" /usr/share/bash-completion/completions/latexbuild
+fi
+
 echo "Done. Run: latexbuild --help"
