@@ -1,21 +1,12 @@
-FROM ubuntu:24.04
+FROM texlive/texlive:latest-medium
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install -y \
-    texlive-full \
-    && rm -rf /var/lib/apt/lists/*
+# scheme-medium doesn't include every document class; add the ones known to be
+# needed here. tlmgr makes it cheap to extend this list if another is missing.
+RUN tlmgr install ieeetran moderncv fontawesome6
 
 RUN apt-get update && apt-get install -y \
-    biber \
-    latexmk \
-    make \
-    git \
-    procps \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN apt-get update && apt-get install -y \
-    python3 \
     python3-pip \
     && rm -rf /var/lib/apt/lists/*
 

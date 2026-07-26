@@ -1,5 +1,5 @@
 name: 'latexbuild'
-description: 'Compile a .tex file to PDF using a full TeX Live distribution (texlive-full, latexmk, biber)'
+description: 'Compile a .tex file to PDF using a containerized TeX Live distribution (latexmk, biber)'
 author: 'Reza Ahmadi'
 branding:
   icon: 'file-text'
