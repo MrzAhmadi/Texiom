@@ -8,11 +8,10 @@ distribution — no LaTeX installation required on the host machine.
 ## Why
 
 Installing a full TeX Live distribution locally is slow, large, and easy to
-get out of sync across machines. This project packages a curated TeX Live
-setup, `latexmk`, and `biber` into a single Docker image (also usable as a
-VS Code Dev Container) and provides a small `latexbuild` command that
-compiles any `.tex` file on your host by mounting its directory into the
-container.
+get out of sync across machines. This project packages `texlive-full`,
+`latexmk`, and `biber` into a single Docker image (also usable as a VS Code
+Dev Container) and provides a small `latexbuild` command that compiles any
+`.tex` file on your host by mounting its directory into the container.
 
 ## Requirements
 
@@ -157,11 +156,11 @@ Ctrl+S needed.
 | `-v, --version`   | Show the installed version                                  |
 | `-h, --help`      | Show usage                                                   |
 
-The first run builds the Docker image (under a minute, pulling a pre-built
-TeX Live base rather than installing packages from scratch); every run
-after that reuses the cached image, so compilation is fast. Upgrading
-`latexbuild` to a new version automatically rebuilds the image once if
-that version needs a different one - no manual `--rebuild` required.
+The first run builds the Docker image (a few minutes, since `texlive-full`
+is a large distribution); every run after that reuses the cached image, so
+compilation is fast. Upgrading `latexbuild` to a new version automatically
+rebuilds the image once if that version needs a different one - no manual
+`--rebuild` required.
 
 ## Using as a VS Code Dev Container
 
@@ -223,14 +222,10 @@ jobs:
 
 ## What's inside the image
 
-- [`texlive/texlive:latest-medium`](https://hub.docker.com/r/texlive/texlive)
-  (Debian-based, TeX Live scheme-medium) plus a small set of extra packages
-  known to be needed (`moderncv`, IEEE conference classes, `fontawesome6`)
+- Ubuntu 24.04
+- `texlive-full` (covers `moderncv`, `biblatex`/`biber`, IEEE conference
+  classes, `tcolorbox`, `mdframed`, and virtually any other LaTeX package)
 - `latexmk`, `biber`, `make`, `git`
-
-If a document needs a package that isn't included, add it to the `tlmgr
-install` line in `docker/Dockerfile` and rebuild (`--rebuild`) - `tlmgr`
-fetches individual packages in seconds, so this is cheap.
 
 ## License
 
