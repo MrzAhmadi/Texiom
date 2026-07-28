@@ -294,6 +294,7 @@ function loadSource() {
   return fetch('/source').then(r => r.text()).then(t => {
     if (token !== loadSourceToken) return;
     cm.setValue(t);
+    cm.clearHistory();
     suppressDirty = false;
   });
 }
@@ -716,6 +717,7 @@ function clearPdfView() {
 function resetToNoFileOpen() {
   suppressDirty = true;
   cm.setValue('');
+  cm.clearHistory();
   suppressDirty = false;
   isDirty = false;
   setCurrentFileLabel(null);
