@@ -94,28 +94,42 @@ spurious `latexmk` errors.
 
 ### Live browser editor
 
-For a rebuild-as-you-type experience, pass `--edit` instead - a specific
-file isn't required, just a project directory (or nothing at all, which
-uses your current directory):
+For a rebuild-as-you-type experience, pass `--edit`:
 
 ```bash
-latexbuild --dir /path/to/your/project --edit
+latexbuild --edit
 ```
 
-This opens a browser split in two: your `.tex` source on the left, the
+No `--dir`/`--file` needed - the editor's project lives entirely inside a
+persistent Docker volume (`latexbuild-workspace`), not on your host
+filesystem. The first time you run it the project is empty; use the
+sidebar to create folders/files, upload existing files (images, `.bib`,
+etc.), rename, and delete - everything is managed from the browser. The
+volume persists across sessions, so your project is exactly as you left
+it the next time you run `latexbuild --edit`, even after the container
+exits.
+
+The browser splits in two: your `.tex`/`.bib` source on the left, the
 compiled PDF on the right, with a file-tree sidebar for the project. Every
 edit recompiles automatically (debounced briefly after you stop typing)
-and refreshes the PDF. The toolbar also lets you compile manually, keep
-PDF-only output, switch to dark mode, or open a different project folder
-from your computer (dropping in any images/bibliography it needs, and
-letting you switch between `.tex` files in the sidebar) - see the in-app
-"⌨ Shortcuts" menu (or press F1) for the full list of keyboard shortcuts,
-including Ctrl+S to save. Ctrl+C in the terminal stops the session; the
-tab picks back up on its own once you run `--edit` again.
+and refreshes the PDF; auxiliary build files (`.aux`, `.log`, `.fls`,
+`.fdb_latexmk`, etc.) are always cleaned up after a successful build,
+leaving just the `.pdf` (plus the small `.synctex.gz` needed for PDF↔source
+jump navigation) next to your `.tex` source. The toolbar also lets you
+compile manually or switch to dark mode; the sidebar lets you switch
+between open files via tabs - see the in-app "⌨ Shortcuts" menu (or press
+F1) for the full list of keyboard shortcuts, including Ctrl+S to save.
+Ctrl+C in the terminal stops the session; the tab picks back up on its
+own once you run `--edit` again. Run `latexbuild --kill-edit` if you need
+to stop a session without a terminal open (e.g. it's stuck or was
+disowned).
 
 It's a small local web server (source and PDF only ever touch
 `127.0.0.1`), not a general-purpose editor - no autocomplete, snippets, or
 extensions beyond what's listed above.
+
+To wipe the persistent project and start over: `docker volume rm
+latexbuild-workspace` (only while no `--edit` session is running).
 
 #### Rebuilding as you type, before you save (using your own editor instead)
 
@@ -146,13 +160,14 @@ Ctrl+S needed.
 
 | Flag              | Description                                                |
 |-------------------|-------------------------------------------------------------|
-| `-d, --dir DIR`   | Directory containing the `.tex` file (optional with `--edit`, which defaults to the current directory) |
-| `-f, --file FILE` | Name of the `.tex` file (`.tex` extension optional); optional with `--edit` |
+| `-d, --dir DIR`   | Directory containing the `.tex` file (not used with `--edit`) |
+| `-f, --file FILE` | Name of the `.tex` file (`.tex` extension optional); not used with `--edit` |
 | `-t, --tag TAG`   | Docker image tag to use/build (default: `latexbuild`)         |
 | `-r, --rebuild`   | Force a fresh image build even if one already exists        |
 | `-p, --pdf-only`  | Remove `latexmk`'s auxiliary files after a successful build, leaving only the `.pdf` |
 | `-w, --watch`     | Rebuild automatically whenever the `.tex` file changes, until Ctrl+C |
-| `-e, --edit`      | Open a browser split editor/PDF view that rebuilds as you type, until Ctrl+C |
+| `-e, --edit`      | Open the browser editor for your persistent in-container project, until Ctrl+C |
+| `-k, --kill-edit` | Stop any running `--edit` session (frees its port) and exit |
 | `-v, --version`   | Show the installed version                                  |
 | `-h, --help`      | Show usage                                                   |
 

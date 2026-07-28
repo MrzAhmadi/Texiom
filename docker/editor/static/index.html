@@ -25,8 +25,6 @@
   <div class="toolbar-divider"></div>
 
   <div class="toolbar-group">
-    <button id="openFileBtn" class="btn" title="Open a project folder from your computer (includes images, .bib, etc.)">📂 Open</button>
-    <input type="file" id="fileInput" webkitdirectory directory multiple hidden>
     <span id="currentFile" class="current-file"></span>
   </div>
 
@@ -39,17 +37,6 @@
       <span class="toggle-label">Live preview</span>
     </label>
     <button id="compileNow" class="btn">Compile now</button>
-    <span class="toggle-with-hint">
-      <label class="toggle">
-        <input type="checkbox" id="pdfOnlyToggle">
-        <span class="toggle-track"><span class="toggle-thumb"></span></span>
-        <span class="toggle-label">PDF only</span>
-      </label>
-      <span class="info-icon" tabindex="0">
-        i
-        <span class="info-tooltip">Deletes auxiliary build files (.aux, .log, .fls, .fdb_latexmk, etc.) after each successful build, keeping just the .pdf (plus the small .synctex.gz needed for PDF&harr;source jump navigation) next to your .tex file.</span>
-      </span>
-    </span>
   </div>
 
   <div class="toolbar-divider"></div>
@@ -81,10 +68,19 @@
       <span>Project files</span>
       <button id="sidebarCollapseBtn" class="icon-btn" title="Hide project files">&lsaquo;</button>
     </div>
-    <label class="tex-only-row">
-      <input type="checkbox" id="texOnlyToggle">
-      <span>.tex files only</span>
-    </label>
+    <div class="sidebar-actions">
+      <button id="newFileBtn" class="icon-btn" title="New file">📄+</button>
+      <button id="newFolderBtn" class="icon-btn" title="New folder">📁+</button>
+      <button id="uploadBtn" class="icon-btn" title="Upload files here">⬆</button>
+      <button id="uploadFolderBtn" class="icon-btn" title="Upload a folder here (keeps its subfolders)">⬆📁</button>
+      <button id="searchToggleBtn" class="icon-btn" title="Search files and folders">&#128269;</button>
+      <input type="file" id="uploadInput" multiple hidden>
+      <input type="file" id="uploadFolderInput" webkitdirectory directory multiple hidden>
+    </div>
+    <div id="searchRow" class="search-row" hidden>
+      <input type="text" id="searchInput" placeholder="Search files and folders...">
+      <button id="searchClearBtn" class="icon-btn" title="Clear search">&times;</button>
+    </div>
     <div id="fileTree"></div>
   </div>
   <div id="sidebarDragDivider" class="drag-divider" title="Drag to resize" hidden></div>
@@ -98,7 +94,9 @@
       <button id="pdfZoomOut" class="icon-btn" title="Zoom out">&minus;</button>
       <span id="pdfZoomLabel">100%</span>
       <button id="pdfZoomIn" class="icon-btn" title="Zoom in">+</button>
-      <span class="pdf-hint">Ctrl+Click in source to jump to PDF &middot; double-click PDF to jump to source</span>
+      <span class="pdf-toolbar-spacer"></span>
+      <button id="pdfDownloadBtn" class="icon-btn" title="Download this PDF">&#8681; Download</button>
+      <button id="pdfPrintBtn" class="icon-btn" title="Print this PDF">&#128438; Print</button>
     </div>
     <div id="stalePdfNotice">This is the previously generated PDF &mdash; it may be out of date, and some features (like PDF&harr;source jump) may not be available until it's rebuilt.</div>
     <div id="pdfScroll" tabindex="0"><div id="pdfPages"></div></div>
@@ -115,7 +113,6 @@
     <div class="shortcuts-list">
       <div class="shortcuts-group">
         <div class="shortcuts-group-title">File</div>
-        <div class="shortcut-row"><span class="shortcut-desc">Open file</span><span class="shortcut-keys"><kbd class="mod-key">Ctrl</kbd>+<kbd>O</kbd></span></div>
         <div class="shortcut-row"><span class="shortcut-desc">Save file</span><span class="shortcut-keys"><kbd class="mod-key">Ctrl</kbd>+<kbd>S</kbd></span></div>
         <div class="shortcut-row"><span class="shortcut-desc">Compile now</span><span class="shortcut-keys"><kbd class="mod-key">Ctrl</kbd>+<kbd>Enter</kbd></span></div>
       </div>
@@ -127,6 +124,7 @@
       <div class="shortcuts-group">
         <div class="shortcuts-group-title">View</div>
         <div class="shortcut-row"><span class="shortcut-desc">Toggle word wrap</span><span class="shortcut-keys"><kbd class="alt-key">Alt</kbd>+<kbd>Z</kbd></span></div>
+        <div class="shortcut-row"><span class="shortcut-desc">Toggle project files panel</span><span class="shortcut-keys"><kbd class="mod-key">Ctrl</kbd>+<kbd>\</kbd></span></div>
         <div class="shortcut-row"><span class="shortcut-desc">Zoom in / out / reset</span><span class="shortcut-keys"><kbd class="mod-key">Ctrl</kbd>+<kbd>=</kbd> / <kbd class="mod-key">Ctrl</kbd>+<kbd>-</kbd> / <kbd class="mod-key">Ctrl</kbd>+<kbd>0</kbd></span></div>
         <div class="shortcut-row"><span class="shortcut-desc">Show this menu</span><span class="shortcut-keys"><kbd>F1</kbd></span></div>
       </div>
@@ -148,6 +146,14 @@
     <div class="stopped-icon">&#9209;</div>
     <div class="stopped-title">Session stopped</div>
     <div class="stopped-sub">Run <code>latexbuild --edit</code> again — this tab will resume automatically once it's back. A new tab may also open; you can close whichever one you don't need.</div>
+  </div>
+</div>
+<div id="expiredOverlay">
+  <div class="stopped-box">
+    <div class="stopped-icon">&#9888;</div>
+    <div class="stopped-title">Opened in another tab</div>
+    <div class="stopped-sub">This project is now being edited in a newer tab or window, so this tab has been made read-only to avoid conflicting edits.</div>
+    <button id="expiredReloadBtn" class="btn">Reload this tab</button>
   </div>
 </div>
 <script type="module" src="/static/app.js"></script>

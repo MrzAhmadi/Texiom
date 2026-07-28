@@ -1,14 +1,8 @@
 const status = document.getElementById('status');
 const liveToggle = document.getElementById('liveToggle');
 const darkToggle = document.getElementById('darkToggle');
-const pdfOnlyToggle = document.getElementById('pdfOnlyToggle');
 const errorPanel = document.getElementById('errorPanel');
 const compileOverlay = document.getElementById('compileOverlay');
-
-pdfOnlyToggle.checked = localStorage.getItem('latexbuild-pdfonly') === '1';
-pdfOnlyToggle.addEventListener('change', () => {
-  localStorage.setItem('latexbuild-pdfonly', pdfOnlyToggle.checked ? '1' : '0');
-});
 
 let isDirty = false;
 let suppressDirty = true;
@@ -48,6 +42,26 @@ const pdfZoomLabel = document.getElementById('pdfZoomLabel');
 const pdfScrollEl = document.getElementById('pdfScroll');
 const pdfPagesEl = document.getElementById('pdfPages');
 const stalePdfNotice = document.getElementById('stalePdfNotice');
+const pdfDownloadBtn = document.getElementById('pdfDownloadBtn');
+const pdfPrintBtn = document.getElementById('pdfPrintBtn');
+
+pdfDownloadBtn.addEventListener('click', () => {
+  if (!lastTreeTexFile) return;
+  downloadPath(lastTreeTexFile.replace(/\.tex$/i, '.pdf'));
+});
+
+pdfPrintBtn.addEventListener('click', () => {
+  const w = window.open('', '_blank');
+  if (!w) return;
+  w.document.write('<html><head><title>Print PDF</title></head>'
+    + '<body style="margin:0"><iframe src="/pdf" style="border:none;width:100%;height:100vh;"></iframe></body></html>');
+  w.document.close();
+  const iframe = w.document.querySelector('iframe');
+  iframe.onload = () => {
+    w.focus();
+    iframe.contentWindow.print();
+  };
+});
 
 const PDF_BASE_SCALE = 1.25;
 let pdfScale = PDF_BASE_SCALE;
@@ -220,20 +234,38 @@ cm.getWrapperElement().addEventListener('mousedown', (e) => {
 });
 
 const stoppedOverlay = document.getElementById('stoppedOverlay');
+const expiredOverlay = document.getElementById('expiredOverlay');
+const expiredReloadBtn = document.getElementById('expiredReloadBtn');
 const compileNowBtn = document.getElementById('compileNow');
 
-function markStopped() {
-  if (stoppedOverlay.classList.contains('visible')) return;
-  stoppedOverlay.classList.add('visible');
+function disableEditingUI() {
   cm.setOption('readOnly', true);
   liveToggle.disabled = true;
   compileNowBtn.disabled = true;
-  pdfOnlyToggle.disabled = true;
-  openFileBtn.disabled = true;
+  newFileBtn.disabled = true;
+  newFolderBtn.disabled = true;
+  uploadBtn.disabled = true;
+  uploadFolderBtn.disabled = true;
+}
+
+function markStopped() {
+  if (stoppedOverlay.classList.contains('visible') || expiredOverlay.classList.contains('visible')) return;
+  stoppedOverlay.classList.add('visible');
+  disableEditingUI();
   status.className = 'err';
   status.textContent = 'stopped';
   waitForServer();
 }
+
+function markExpired() {
+  if (stoppedOverlay.classList.contains('visible') || expiredOverlay.classList.contains('visible')) return;
+  expiredOverlay.classList.add('visible');
+  disableEditingUI();
+  status.className = 'err';
+  status.textContent = 'expired';
+}
+
+expiredReloadBtn.addEventListener('click', () => location.reload());
 
 function waitForServer() {
   setTimeout(() => {
@@ -247,6 +279,12 @@ const wsProtocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
 const sessionSocket = new WebSocket(wsProtocol + location.host + '/ws');
 sessionSocket.onclose = markStopped;
 sessionSocket.onerror = markStopped;
+sessionSocket.onmessage = (event) => {
+  try {
+    const data = JSON.parse(event.data);
+    if (data.type === 'expired') markExpired();
+  } catch (e) {}
+};
 
 let loadSourceToken = 0;
 
@@ -274,15 +312,11 @@ cm.on('change', () => {
   debounceTimer = setTimeout(compile, 700);
 });
 
-document.getElementById('compileNow').addEventListener('click', () => compile(true));
+document.getElementById('compileNow').addEventListener('click', () => compile());
 
-function compile(manual) {
+function compile() {
   status.className = 'busy';
   status.textContent = 'building...';
-  const params = new URLSearchParams({
-    pdf_only: pdfOnlyToggle.checked ? '1' : '0',
-    manual: manual ? '1' : '0',
-  });
   const persist = isDirty ? persistCurrentEditingFile() : Promise.resolve({ ok: true });
   persist
     .then(persistData => {
@@ -291,7 +325,7 @@ function compile(manual) {
         status.textContent = persistData.log || 'save failed';
         return null;
       }
-      return fetch('/compile?' + params.toString(), { method: 'POST' }).then(r => r.json());
+      return fetch('/compile', { method: 'POST' }).then(r => r.json());
     })
     .then(data => {
       if (!data) return;
@@ -329,6 +363,7 @@ function finishActiveCompile(file) {
     .then(r => r.json())
     .then(data => {
       if (data.state !== 'done') return;
+      loadTree();
       if (data.ok) {
         if (lastTreeCurrent === file) isDirty = false;
         status.className = 'ok';
@@ -414,19 +449,7 @@ pdfScrollEl.addEventListener('keydown', (e) => {
 async function persistCurrentEditingFile() {
   const content = cm.getValue();
   const resp = await fetch('/save', { method: 'POST', body: content });
-  const data = await resp.json();
-  if (!data.ok) return data;
-  const handle = activeFileHandles.get(lastTreeCurrent);
-  if (handle) {
-    try {
-      const writable = await handle.createWritable();
-      await writable.write(content);
-      await writable.close();
-    } catch (e) {
-      return { ok: true, diskWriteFailed: true };
-    }
-  }
-  return data;
+  return resp.json();
 }
 
 function saveFile() {
@@ -437,16 +460,8 @@ function saveFile() {
       return data;
     }
     isDirty = false;
-    if (data.diskWriteFailed) {
-      status.className = 'err';
-      status.textContent = 'saved (could not write host file)';
-    } else if (activeFileHandles.has(lastTreeCurrent)) {
-      status.className = 'ok';
-      status.textContent = 'saved to disk';
-    } else {
-      status.className = 'ok';
-      status.textContent = 'saved';
-    }
+    status.className = 'ok';
+    status.textContent = 'saved';
     return data;
   });
 }
@@ -518,8 +533,8 @@ cm.setOption('extraKeys', {
   'Cmd-I': (c) => wrapSelection(c, '\\textit{', '}'),
   'Ctrl-/': toggleLineComment,
   'Cmd-/': toggleLineComment,
-  'Ctrl-Enter': () => compile(true),
-  'Cmd-Enter': () => compile(true),
+  'Ctrl-Enter': () => compile(),
+  'Cmd-Enter': () => compile(),
   'Ctrl-=': () => zoomEditor(1),
   'Cmd-=': () => zoomEditor(1),
   'Ctrl--': () => zoomEditor(-1),
@@ -547,8 +562,6 @@ shortcutsModal.addEventListener('click', (e) => {
   if (e.target === shortcutsModal) closeShortcuts();
 });
 
-const openFileBtn = document.getElementById('openFileBtn');
-const fileInput = document.getElementById('fileInput');
 const currentFileLabel = document.getElementById('currentFile');
 const sidebar = document.getElementById('sidebar');
 const sidebarCollapsed = document.getElementById('sidebarCollapsed');
@@ -556,8 +569,17 @@ const sidebarDragDivider = document.getElementById('sidebarDragDivider');
 const sidebarCollapseBtn = document.getElementById('sidebarCollapseBtn');
 const sidebarExpandBtn = document.getElementById('sidebarExpandBtn');
 const fileTreeEl = document.getElementById('fileTree');
-const texOnlyToggle = document.getElementById('texOnlyToggle');
 const tabBarEl = document.getElementById('tabBar');
+const newFileBtn = document.getElementById('newFileBtn');
+const newFolderBtn = document.getElementById('newFolderBtn');
+const uploadBtn = document.getElementById('uploadBtn');
+const uploadInput = document.getElementById('uploadInput');
+const uploadFolderBtn = document.getElementById('uploadFolderBtn');
+const uploadFolderInput = document.getElementById('uploadFolderInput');
+const searchToggleBtn = document.getElementById('searchToggleBtn');
+const searchRow = document.getElementById('searchRow');
+const searchInput = document.getElementById('searchInput');
+const searchClearBtn = document.getElementById('searchClearBtn');
 let sidebarInitialized = false;
 let uploadInProgress = false;
 let openTabs = [];
@@ -598,9 +620,18 @@ function renderTabBar() {
   });
 }
 
+function persistOpenTabs() {
+  fetch('/state/tabs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tabs: openTabs }),
+  });
+}
+
 function openTab(path) {
   if (!openTabs.includes(path)) openTabs.push(path);
   renderTabBar();
+  persistOpenTabs();
 }
 
 function closeTab(path) {
@@ -610,6 +641,7 @@ function closeTab(path) {
   if (wasActive && isDirty && !confirm('Discard unsaved changes and close "' + path + '"?')) return;
   openTabs.splice(idx, 1);
   renderTabBar();
+  persistOpenTabs();
   if (!wasActive) return;
   const next = openTabs[idx] || openTabs[idx - 1];
   if (next) {
@@ -621,10 +653,50 @@ function closeTab(path) {
   }
 }
 
-texOnlyToggle.checked = localStorage.getItem('latexbuild-texonly') === '1';
-texOnlyToggle.addEventListener('change', () => {
-  localStorage.setItem('latexbuild-texonly', texOnlyToggle.checked ? '1' : '0');
+let searchQuery = '';
+
+function setSearchQuery(q) {
+  searchQuery = q;
+  if (q) {
+    const { dirs } = getFilteredTreeData();
+    dirs.forEach(d => expandedFolders.add(d));
+  }
   renderCurrentTree();
+}
+
+function showSearchRow() {
+  searchRow.hidden = false;
+  searchToggleBtn.classList.add('active');
+  searchInput.focus();
+}
+
+function hideSearchRow() {
+  searchRow.hidden = true;
+  searchToggleBtn.classList.remove('active');
+  searchInput.value = '';
+  setSearchQuery('');
+}
+
+searchToggleBtn.addEventListener('click', () => {
+  if (searchRow.hidden) {
+    showSearchRow();
+  } else {
+    hideSearchRow();
+  }
+});
+
+searchInput.addEventListener('input', () => {
+  setSearchQuery(searchInput.value.trim());
+});
+
+searchInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') hideSearchRow();
+});
+
+searchClearBtn.addEventListener('click', () => {
+  searchInput.value = '';
+  setSearchQuery('');
+  searchInput.focus();
 });
 
 function setCurrentFileLabel(name) {
@@ -653,6 +725,8 @@ function resetToNoFileOpen() {
   clearPdfView();
   openTabs = [];
   renderTabBar();
+  persistOpenTabs();
+  fetch('/deselect', { method: 'POST' });
 }
 
 function showSidebarExpanded() {
@@ -669,6 +743,14 @@ function showSidebarCollapsed() {
 
 sidebarCollapseBtn.addEventListener('click', showSidebarCollapsed);
 sidebarExpandBtn.addEventListener('click', showSidebarExpanded);
+
+function toggleSidebar() {
+  if (sidebar.hidden) {
+    showSidebarExpanded();
+  } else {
+    showSidebarCollapsed();
+  }
+}
 
 const editorPane = document.getElementById('editor-pane');
 const dragDivider = document.getElementById('dragDivider');
@@ -738,8 +820,15 @@ window.addEventListener('mouseup', () => {
   localStorage.setItem('latexbuild-sidebar-width', parseFloat(sidebar.style.width));
 });
 
-function buildTree(paths) {
+function buildTree(paths, dirs) {
   const root = {};
+  (dirs || []).forEach(dirPath => {
+    let node = root;
+    dirPath.split('/').forEach(part => {
+      node[part] = node[part] || {};
+      node = node[part];
+    });
+  });
   paths.forEach(path => {
     const parts = path.split('/');
     let node = root;
@@ -758,6 +847,45 @@ function buildTree(paths) {
 
 const expandedFolders = new Set();
 
+function downloadPath(path) {
+  const a = document.createElement('a');
+  a.href = '/fs/download?path=' + encodeURIComponent(path);
+  a.download = '';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+function dirMenuOptions(dirPath) {
+  return [
+    { label: 'New file here', action: () => createFile(dirPath) },
+    { label: 'New folder here', action: () => createFolder(dirPath) },
+    { label: 'Upload here', action: () => triggerUpload(dirPath) },
+    { label: 'Upload folder here', action: () => triggerUploadFolder(dirPath) },
+    { label: 'Download (.zip)', action: () => downloadPath(dirPath) },
+    { label: 'Rename', action: () => renameEntry(dirPath, true) },
+    { label: 'Delete', action: () => deleteEntry(dirPath, true) },
+  ];
+}
+
+function fileMenuOptions(path) {
+  return [
+    { label: 'Download', action: () => downloadPath(path) },
+    { label: 'Rename', action: () => renameEntry(path, false) },
+    { label: 'Delete', action: () => deleteEntry(path, false) },
+  ];
+}
+
+function rootMenuOptions() {
+  return [
+    { label: 'New file here', action: () => createFile('') },
+    { label: 'New folder here', action: () => createFolder('') },
+    { label: 'Upload here', action: () => triggerUpload('') },
+    { label: 'Upload folder here', action: () => triggerUploadFolder('') },
+    { label: 'Download project (.zip)', action: () => downloadPath('') },
+  ];
+}
+
 function renderTree(node, container, currentFile, depth = 0, pathPrefix = '') {
   const indent = 10 + depth * 14;
 
@@ -768,10 +896,31 @@ function renderTree(node, container, currentFile, depth = 0, pathPrefix = '') {
     row.style.paddingLeft = indent + 'px';
     const children = document.createElement('div');
     children.className = 'tree-children' + (expandedFolders.has(dirPath) ? '' : ' collapsed');
+
+    const label = document.createElement('span');
+    label.className = 'tree-label';
     const setLabel = () => {
-      row.textContent = (children.classList.contains('collapsed') ? '▸' : '▾') + ' 📁 ' + dirName;
+      label.textContent = (children.classList.contains('collapsed') ? '▸' : '▾') + ' 📁 ' + dirName;
     };
     setLabel();
+    row.appendChild(label);
+
+    const menuBtn = document.createElement('button');
+    menuBtn.className = 'tree-row-menu-btn';
+    menuBtn.textContent = '⋮';
+    menuBtn.title = 'Actions';
+    menuBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openRowMenu(dirMenuOptions(dirPath), { x: menuBtn.getBoundingClientRect().left, y: menuBtn.getBoundingClientRect().bottom + 4 });
+    });
+    row.appendChild(menuBtn);
+
+    row.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openRowMenu(dirMenuOptions(dirPath), { x: e.clientX, y: e.clientY });
+    });
+
     row.addEventListener('click', () => {
       children.classList.toggle('collapsed');
       if (children.classList.contains('collapsed')) {
@@ -797,35 +946,77 @@ function renderTree(node, container, currentFile, depth = 0, pathPrefix = '') {
       + (isEditable ? ' editable-file' : '')
       + (isActive ? ' active' : '');
     row.style.paddingLeft = indent + 'px';
+
+    const label = document.createElement('span');
+    label.className = 'tree-label';
     const icon = compilingFiles.has(f.path) ? '⏳ ' : (isTex ? '📄 ' : isBib ? '📚 ' : '　');
-    row.textContent = icon + f.name;
+    label.textContent = icon + f.name;
+    row.appendChild(label);
+
+    const menuBtn = document.createElement('button');
+    menuBtn.className = 'tree-row-menu-btn';
+    menuBtn.textContent = '⋮';
+    menuBtn.title = 'Actions';
+    menuBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openRowMenu(fileMenuOptions(f.path), { x: menuBtn.getBoundingClientRect().left, y: menuBtn.getBoundingClientRect().bottom + 4 });
+    });
+    row.appendChild(menuBtn);
+
+    row.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openRowMenu(fileMenuOptions(f.path), { x: e.clientX, y: e.clientY });
+    });
+
     if (isEditable) row.addEventListener('dblclick', () => selectFile(f.path));
     container.appendChild(row);
   });
 }
 
 let lastTreeFiles = [];
+let lastTreeDirs = [];
 let lastTreeCurrent = null;
 let lastTreeTexFile = null;
 
+function collectAncestors(path, set) {
+  const parts = path.split('/');
+  let cur = '';
+  for (let i = 0; i < parts.length - 1; i++) {
+    cur = cur ? cur + '/' + parts[i] : parts[i];
+    set.add(cur);
+  }
+}
+
+function getFilteredTreeData() {
+  if (!searchQuery) return { files: lastTreeFiles, dirs: lastTreeDirs };
+  const q = searchQuery.toLowerCase();
+  const matchingDirs = lastTreeDirs.filter(d => d.toLowerCase().includes(q));
+  const isUnderMatchingDir = (p) => matchingDirs.some(d => p === d || p.startsWith(d + '/'));
+  const files = lastTreeFiles.filter(f => f.toLowerCase().includes(q) || isUnderMatchingDir(f));
+  const dirSet = new Set(lastTreeDirs.filter(d => d.toLowerCase().includes(q) || isUnderMatchingDir(d)));
+  files.forEach(f => collectAncestors(f, dirSet));
+  Array.from(dirSet).forEach(d => collectAncestors(d, dirSet));
+  return { files, dirs: Array.from(dirSet) };
+}
+
 function renderCurrentTree() {
   fileTreeEl.innerHTML = '';
-  const files = texOnlyToggle.checked
-    ? lastTreeFiles.filter(f => f.toLowerCase().endsWith('.tex'))
-    : lastTreeFiles;
-  renderTree(buildTree(files), fileTreeEl, lastTreeCurrent);
+  const { files, dirs } = getFilteredTreeData();
+  renderTree(buildTree(files, dirs), fileTreeEl, lastTreeCurrent);
 }
 
 function loadTree() {
   return fetch('/tree').then(r => r.json()).then(data => {
     lastTreeFiles = data.files;
+    lastTreeDirs = data.dirs || [];
     lastTreeCurrent = data.current;
     lastTreeTexFile = data.tex_file;
     renderCurrentTree();
     renderTabBar();
     if (!sidebarInitialized) {
       sidebarInitialized = true;
-      showSidebarCollapsed();
+      showSidebarExpanded();
     }
   });
 }
@@ -873,6 +1064,7 @@ function selectFile(path) {
 
 fetch('/current').then(r => r.json()).then(data => {
   setCurrentFileLabel(data.file);
+  (data.open_tabs || []).forEach(path => openTab(path));
   if (data.file) {
     openTab(data.file);
     if (data.file === data.tex_file) refreshPdf(false, false);
@@ -880,133 +1072,179 @@ fetch('/current').then(r => r.json()).then(data => {
 });
 loadTree().then(initCompilePolling);
 
-let activeFileHandles = new Map();
-const supportsFileSystemAccess = 'showDirectoryPicker' in window;
+let uploadTargetDir = '';
 
-if (supportsFileSystemAccess) {
-  openFileBtn.title = 'Open a project folder from your computer (includes images, .bib, etc.) '
-    + '— Ctrl+S saves directly back to these files on disk.';
-} else {
-  openFileBtn.title = 'Open a project folder from your computer (includes images, .bib, etc.) '
-    + '— this browser only supports uploading a copy; Ctrl+S saves within the session only.';
+function triggerUpload(targetDir) {
+  uploadTargetDir = targetDir;
+  uploadInput.click();
 }
 
-function triggerOpenFile() {
-  if (isDirty && !confirm('Discard unsaved changes and open a different folder?')) return;
-  if (supportsFileSystemAccess) {
-    openViaFileSystemAccess();
-  } else {
-    fileInput.click();
-  }
+function triggerUploadFolder(targetDir) {
+  uploadTargetDir = targetDir;
+  uploadFolderInput.click();
 }
 
-openFileBtn.addEventListener('click', triggerOpenFile);
+uploadBtn.addEventListener('click', () => triggerUpload(''));
+uploadFolderBtn.addEventListener('click', () => triggerUploadFolder(''));
 
-async function collectDirectoryEntries(dirHandle, prefix) {
-  const results = [];
-  for await (const [name, handle] of dirHandle.entries()) {
-    if (name.startsWith('.')) continue;
-    const relPath = prefix ? prefix + '/' + name : name;
-    if (handle.kind === 'directory') {
-      results.push(...await collectDirectoryEntries(handle, relPath));
-    } else {
-      results.push({ path: relPath, handle });
-    }
-  }
-  return results;
-}
-
-async function openViaFileSystemAccess() {
-  let dirHandle;
-  try {
-    dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-  } catch (e) {
-    return;
-  }
-
-  uploadInProgress = true;
-  compileNowBtn.disabled = true;
-  openFileBtn.disabled = true;
-  status.className = 'busy';
-  status.textContent = 'clearing workspace...';
-
-  await fetch('/clear-workspace', { method: 'POST' });
-  activeFileHandles = new Map();
-
-  status.textContent = 'reading folder...';
-  const entries = await collectDirectoryEntries(dirHandle, '');
-
-  let uploaded = 0;
-  for (const { path, handle } of entries) {
-    const file = await handle.getFile();
-    await fetch('/upload?name=' + encodeURIComponent(path), { method: 'POST', body: file });
-    activeFileHandles.set(path, handle);
-    uploaded++;
-    status.textContent = 'uploading ' + uploaded + '/' + entries.length + '...';
-  }
-
-  uploadInProgress = false;
-  compileNowBtn.disabled = false;
-  openFileBtn.disabled = false;
-
-  const texPaths = entries.map(e => e.path).filter(p => p.toLowerCase().endsWith('.tex'));
-
-  resetToNoFileOpen();
-  loadTree();
-  showSidebarExpanded();
-  if (texPaths.length > 0) {
-    status.className = 'ok';
-    status.textContent = 'opened';
-  } else {
-    status.className = 'err';
-    status.textContent = 'no .tex file found';
+function expandAncestors(path) {
+  const parts = path.split('/');
+  let cur = '';
+  for (let i = 0; i < parts.length - 1; i++) {
+    cur = cur ? cur + '/' + parts[i] : parts[i];
+    expandedFolders.add(cur);
   }
 }
 
-fileInput.addEventListener('change', async () => {
-  const files = Array.from(fileInput.files);
-  fileInput.value = '';
+async function uploadFileList(files, relPathOf) {
   if (files.length === 0) return;
 
   uploadInProgress = true;
   compileNowBtn.disabled = true;
-  openFileBtn.disabled = true;
   status.className = 'busy';
-  status.textContent = 'clearing workspace...';
-
-  await fetch('/clear-workspace', { method: 'POST' });
-  activeFileHandles = new Map();
-
-  const relPathOf = (f) => f.webkitRelativePath.split('/').slice(1).join('/');
-  const isHidden = (rel) => rel.split('/').some(part => part.startsWith('.'));
 
   let uploaded = 0;
   for (const file of files) {
     const rel = relPathOf(file);
-    if (!rel || isHidden(rel)) continue;
-    await fetch('/upload?name=' + encodeURIComponent(rel), { method: 'POST', body: file });
     uploaded++;
+    if (!rel) continue;
+    expandAncestors(rel);
     status.textContent = 'uploading ' + uploaded + '/' + files.length + '...';
+    await fetch('/upload?name=' + encodeURIComponent(rel), { method: 'POST', body: file });
   }
 
   uploadInProgress = false;
   compileNowBtn.disabled = false;
-  openFileBtn.disabled = false;
-
-  const texPaths = files
-    .map(relPathOf)
-    .filter(p => p && !isHidden(p) && p.toLowerCase().endsWith('.tex'));
-
-  resetToNoFileOpen();
+  status.className = 'ok';
+  status.textContent = 'uploaded';
   loadTree();
-  showSidebarExpanded();
-  if (texPaths.length > 0) {
-    status.className = 'ok';
-    status.textContent = 'opened';
-  } else {
-    status.className = 'err';
-    status.textContent = 'no .tex file found';
+}
+
+uploadInput.addEventListener('change', async () => {
+  const files = Array.from(uploadInput.files);
+  uploadInput.value = '';
+  await uploadFileList(files, (file) => joinPath(uploadTargetDir, file.name));
+});
+
+uploadFolderInput.addEventListener('change', async () => {
+  const files = Array.from(uploadFolderInput.files);
+  uploadFolderInput.value = '';
+  const isHidden = (rel) => rel.split('/').some(part => part.startsWith('.'));
+  await uploadFileList(files, (file) => {
+    const rel = file.webkitRelativePath;
+    if (!rel || isHidden(rel)) return null;
+    return joinPath(uploadTargetDir, rel);
+  });
+});
+
+function joinPath(dir, name) {
+  return dir ? dir + '/' + name : name;
+}
+
+async function createFile(targetDir) {
+  const name = prompt('New file name (e.g. chapter2.tex, notes.bib):');
+  if (!name || !name.trim()) return;
+  const rel = joinPath(targetDir, name.trim());
+  const resp = await fetch('/fs/create-file', { method: 'POST', body: rel });
+  const data = await resp.json();
+  if (!data.ok) {
+    alert(data.error === 'already exists' ? 'A file with that name already exists.' : 'Could not create file.');
+    return;
   }
+  await loadTree();
+  const lower = rel.toLowerCase();
+  if (lower.endsWith('.tex') || lower.endsWith('.bib')) selectFile(rel);
+}
+
+async function createFolder(targetDir) {
+  const name = prompt('New folder name:');
+  if (!name || !name.trim()) return;
+  const rel = joinPath(targetDir, name.trim());
+  const resp = await fetch('/fs/create-folder', { method: 'POST', body: rel });
+  const data = await resp.json();
+  if (!data.ok) {
+    alert(data.error === 'already exists' ? 'A folder with that name already exists.' : 'Could not create folder.');
+    return;
+  }
+  expandedFolders.add(rel);
+  await loadTree();
+}
+
+async function renameEntry(path, isDir) {
+  const currentName = path.split('/').pop();
+  const parent = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
+  const newName = prompt('Rename to:', currentName);
+  if (!newName || !newName.trim() || newName.trim() === currentName) return;
+  const to = joinPath(parent, newName.trim());
+  const resp = await fetch('/fs/rename', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from: path, to }),
+  });
+  const data = await resp.json();
+  if (!data.ok) {
+    alert(data.error || 'Rename failed.');
+    return;
+  }
+  openTabs = data.open_tabs || [];
+  renderTabBar();
+  if (data.editing_file) setCurrentFileLabel(data.editing_file);
+  await loadTree();
+}
+
+async function deleteEntry(path, isDir) {
+  const label = isDir ? 'folder "' + path + '" and everything inside it' : 'file "' + path + '"';
+  if (!confirm('Delete ' + label + '? This cannot be undone.')) return;
+  const resp = await fetch('/fs/delete', { method: 'POST', body: path });
+  const data = await resp.json();
+  if (!data.ok) {
+    alert(data.error || 'Delete failed.');
+    return;
+  }
+  openTabs = data.open_tabs || [];
+  renderTabBar();
+  if (data.closed_current) resetToNoFileOpen();
+  await loadTree();
+}
+
+newFileBtn.addEventListener('click', () => createFile(''));
+newFolderBtn.addEventListener('click', () => createFolder(''));
+
+let rowMenuEl = null;
+
+function closeRowMenu() {
+  if (!rowMenuEl) return;
+  rowMenuEl.remove();
+  rowMenuEl = null;
+}
+
+function openRowMenu(options, pos) {
+  closeRowMenu();
+  const menu = document.createElement('div');
+  menu.className = 'row-menu';
+  options.forEach(opt => {
+    const item = document.createElement('div');
+    item.className = 'row-menu-item';
+    item.textContent = opt.label;
+    item.addEventListener('click', () => {
+      closeRowMenu();
+      opt.action();
+    });
+    menu.appendChild(item);
+  });
+  document.body.appendChild(menu);
+  menu.style.top = Math.min(pos.y, window.innerHeight - menu.offsetHeight - 8) + 'px';
+  menu.style.left = Math.min(pos.x, window.innerWidth - menu.offsetWidth - 8) + 'px';
+  rowMenuEl = menu;
+}
+
+fileTreeEl.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  openRowMenu(rootMenuOptions(), { x: e.clientX, y: e.clientY });
+});
+
+window.addEventListener('mousedown', (e) => {
+  if (rowMenuEl && !rowMenuEl.contains(e.target)) closeRowMenu();
 });
 
 window.addEventListener('keydown', (e) => {
@@ -1018,15 +1256,15 @@ window.addEventListener('keydown', (e) => {
     return;
   }
 
-  if (ctrl && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'o') {
-    e.preventDefault();
-    triggerOpenFile();
-    return;
-  }
-
   if (e.altKey && !ctrl && !e.shiftKey && e.code === 'KeyZ') {
     e.preventDefault();
     toggleWordWrap();
+    return;
+  }
+
+  if (ctrl && !e.shiftKey && !e.altKey && e.code === 'Backslash') {
+    e.preventDefault();
+    toggleSidebar();
     return;
   }
 
