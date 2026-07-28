@@ -1,3 +1,5 @@
+<img src="assets/logo.png" alt="latexbuild logo" width="160">
+
 # latexbuild
 
 [![Version](https://img.shields.io/github/v/release/MrzAhmadi/latexbuild)](https://github.com/MrzAhmadi/latexbuild/releases)
@@ -99,6 +101,8 @@ For a rebuild-as-you-type experience, pass `--edit`:
 ```bash
 latexbuild --edit
 ```
+
+![latexbuild live browser editor](assets/sc1.png)
 
 No `--dir`/`--file` needed - the editor's project lives entirely inside a
 persistent Docker volume (`latexbuild-workspace`), not on your host
