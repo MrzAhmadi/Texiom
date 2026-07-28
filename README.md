@@ -22,6 +22,14 @@ Dev Container) and provides a small `texiom` command that compiles any
 
 No LaTeX distribution needs to be installed on the host.
 
+**On Windows:** there's no native Windows build - use
+[WSL2](https://learn.microsoft.com/windows/wsl/install) instead. Docker
+Desktop already requires WSL2 for Linux containers, so this isn't an
+extra dependency: install Docker Desktop, enable WSL2 integration for
+your distro (Settings → Resources → WSL Integration), then open that
+distro's terminal (e.g. Ubuntu) and follow the Linux instructions below
+exactly as written - `texiom` runs unmodified there.
+
 ## Installation
 
 Download the latest release from the
