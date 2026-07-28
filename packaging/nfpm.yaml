@@ -1,27 +1,27 @@
-name: latexbuild
+name: texiom
 arch: all
 platform: linux
-version: "${LATEXBUILD_VERSION}"
+version: "${TEXIOM_VERSION}"
 description: "Compile any .tex file into a PDF using a containerized, full TeX Live distribution - no LaTeX installation required on the host."
 maintainer: "Reza <mrzahmadi96@gmail.com>"
 license: MIT
-homepage: "https://github.com/MrzAhmadi/latexbuild"
+homepage: "https://github.com/MrzAhmadi/texiom"
 
 contents:
-  - src: ./latexbuild
-    dst: /usr/lib/latexbuild/latexbuild
+  - src: ./texiom
+    dst: /usr/lib/texiom/texiom
     file_info:
       mode: 0755
 
   - src: ./docker
-    dst: /usr/lib/latexbuild/docker
+    dst: /usr/lib/texiom/docker
 
   - src: ./VERSION
-    dst: /usr/lib/latexbuild/VERSION
+    dst: /usr/lib/texiom/VERSION
 
-  - src: ./packaging/completions/latexbuild.bash
-    dst: /usr/share/bash-completion/completions/latexbuild
+  - src: ./packaging/completions/texiom.bash
+    dst: /usr/share/bash-completion/completions/texiom
 
-  - src: /usr/lib/latexbuild/latexbuild
-    dst: /usr/bin/latexbuild
+  - src: /usr/lib/texiom/texiom
+    dst: /usr/bin/texiom
     type: symlink

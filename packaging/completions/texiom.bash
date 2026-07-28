@@ -1,4 +1,4 @@
-_latexbuild_completions() {
+_texiom_completions() {
     local cur prev
     _init_completion || return
 
@@ -36,4 +36,4 @@ _latexbuild_completions() {
 
     COMPREPLY=($(compgen -W "$long_opts $short_opts" -- "$cur"))
 } &&
-complete -F _latexbuild_completions latexbuild
+complete -F _texiom_completions texiom

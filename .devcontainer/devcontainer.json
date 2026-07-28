@@ -1,5 +1,5 @@
 {
-    "name": "latexbuild",
+    "name": "Texiom",
     "build": {
         "dockerfile": "../docker/Dockerfile",
         "context": "../docker"

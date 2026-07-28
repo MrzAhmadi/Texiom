@@ -21,15 +21,15 @@ RUN apt-get update && apt-get install -y \
 
 RUN pip3 install --break-system-packages --no-cache-dir fastapi "uvicorn[standard]"
 
-COPY action-entrypoint.sh /usr/local/bin/latexbuild-action-entrypoint
-RUN chmod +x /usr/local/bin/latexbuild-action-entrypoint
+COPY action-entrypoint.sh /usr/local/bin/texiom-action-entrypoint
+RUN chmod +x /usr/local/bin/texiom-action-entrypoint
 
-COPY editor/ /opt/latexbuild-editor/
+COPY editor/ /opt/texiom-editor/
 
-ARG LATEXBUILD_VERSION=unknown
-ARG LATEXBUILD_DOCKER_HASH=unknown
-LABEL latexbuild.version="${LATEXBUILD_VERSION}"
-LABEL latexbuild.dockerhash="${LATEXBUILD_DOCKER_HASH}"
+ARG TEXIOM_VERSION=unknown
+ARG TEXIOM_DOCKER_HASH=unknown
+LABEL texiom.version="${TEXIOM_VERSION}"
+LABEL texiom.dockerhash="${TEXIOM_DOCKER_HASH}"
 
 WORKDIR /workspace
 

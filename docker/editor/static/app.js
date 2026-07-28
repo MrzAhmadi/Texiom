@@ -18,7 +18,7 @@ function applyTheme(isDark) {
   document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
 }
 
-const storedTheme = localStorage.getItem('latexbuild-theme');
+const storedTheme = localStorage.getItem('texiom-theme');
 const initialDark = storedTheme ? storedTheme === 'dark' : systemPrefersDark();
 darkToggle.checked = initialDark;
 applyTheme(initialDark);
@@ -33,7 +33,7 @@ darkToggle.addEventListener('change', () => {
   const isDark = darkToggle.checked;
   applyTheme(isDark);
   cm.setOption('theme', isDark ? 'material-darker' : 'default');
-  localStorage.setItem('latexbuild-theme', isDark ? 'dark' : 'light');
+  localStorage.setItem('texiom-theme', isDark ? 'dark' : 'light');
 });
 
 const pdfZoomInBtn = document.getElementById('pdfZoomIn');
@@ -758,7 +758,7 @@ const editorPane = document.getElementById('editor-pane');
 const dragDivider = document.getElementById('dragDivider');
 const containerEl = document.getElementById('container');
 
-const savedEditorWidth = parseFloat(localStorage.getItem('latexbuild-editor-width'));
+const savedEditorWidth = parseFloat(localStorage.getItem('texiom-editor-width'));
 if (!isNaN(savedEditorWidth)) editorPane.style.width = savedEditorWidth + '%';
 
 let dividerDragging = false;
@@ -790,10 +790,10 @@ window.addEventListener('mouseup', () => {
   dragDivider.classList.remove('dragging');
   document.body.style.cursor = '';
   document.body.style.userSelect = '';
-  localStorage.setItem('latexbuild-editor-width', parseFloat(editorPane.style.width));
+  localStorage.setItem('texiom-editor-width', parseFloat(editorPane.style.width));
 });
 
-const savedSidebarWidth = parseFloat(localStorage.getItem('latexbuild-sidebar-width'));
+const savedSidebarWidth = parseFloat(localStorage.getItem('texiom-sidebar-width'));
 if (!isNaN(savedSidebarWidth)) sidebar.style.width = savedSidebarWidth + 'px';
 
 let sidebarDividerDragging = false;
@@ -819,7 +819,7 @@ window.addEventListener('mouseup', () => {
   sidebarDragDivider.classList.remove('dragging');
   document.body.style.cursor = '';
   document.body.style.userSelect = '';
-  localStorage.setItem('latexbuild-sidebar-width', parseFloat(sidebar.style.width));
+  localStorage.setItem('texiom-sidebar-width', parseFloat(sidebar.style.width));
 });
 
 function buildTree(paths, dirs) {

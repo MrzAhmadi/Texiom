@@ -15,9 +15,25 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Res
 from fastapi.staticfiles import StaticFiles
 
 STATIC_DIR = Path(__file__).parent / "static"
+TEMPLATES_DIR = Path(__file__).parent / "templates"
 
 WORKSPACE_ROOT = Path.cwd().resolve()
-STATE_FILE = WORKSPACE_ROOT / ".latexbuild-state.json"
+STATE_FILE = WORKSPACE_ROOT / ".texiom-state.json"
+SEED_MARKER = WORKSPACE_ROOT / ".texiom-seeded"
+
+
+def seed_workspace_if_empty():
+    if SEED_MARKER.exists():
+        return
+    has_content = any(not p.name.startswith(".") for p in WORKSPACE_ROOT.iterdir())
+    if not has_content:
+        sample_src = TEMPLATES_DIR / "sample"
+        if sample_src.is_dir():
+            shutil.copytree(sample_src, WORKSPACE_ROOT / "sample")
+    SEED_MARKER.touch()
+
+
+seed_workspace_if_empty()
 
 TEX_FILE = None
 PDF_FILE = None

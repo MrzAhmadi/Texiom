@@ -1,8 +1,8 @@
-<img src="assets/logo.png" alt="latexbuild logo" width="160">
+<img src="assets/logo.png" alt="Texiom logo" width="160">
 
-# latexbuild
+# Texiom
 
-[![Version](https://img.shields.io/github/v/release/MrzAhmadi/latexbuild)](https://github.com/MrzAhmadi/latexbuild/releases)
+[![Version](https://img.shields.io/github/v/release/MrzAhmadi/texiom)](https://github.com/MrzAhmadi/texiom/releases)
 
 Compile any `.tex` file into a PDF using a containerized, full TeX Live
 distribution — no LaTeX installation required on the host machine.
@@ -12,7 +12,7 @@ distribution — no LaTeX installation required on the host machine.
 Installing a full TeX Live distribution locally is slow, large, and easy to
 get out of sync across machines. This project packages `texlive-full`,
 `latexmk`, and `biber` into a single Docker image (also usable as a VS Code
-Dev Container) and provides a small `latexbuild` command that compiles any
+Dev Container) and provides a small `texiom` command that compiles any
 `.tex` file on your host by mounting its directory into the container.
 
 ## Requirements
@@ -25,43 +25,43 @@ No LaTeX distribution needs to be installed on the host.
 ## Installation
 
 Download the latest release from the
-[Releases page](https://github.com/MrzAhmadi/latexbuild/releases).
+[Releases page](https://github.com/MrzAhmadi/texiom/releases).
 
 **Debian / Ubuntu:**
 
 ```bash
-sudo dpkg -i latexbuild_*.deb
+sudo dpkg -i texiom_*.deb
 ```
 
 **Fedora / RHEL:**
 
 ```bash
-sudo rpm -i latexbuild-*.rpm
+sudo rpm -i texiom-*.rpm
 ```
 
 **Any other Linux (generic tarball):**
 
 ```bash
-tar -xzf latexbuild-*-linux.tar.gz
-cd latexbuild-*/
+tar -xzf texiom-*-linux.tar.gz
+cd texiom-*/
 sudo ./install.sh
 ```
 
-Each of these installs a `latexbuild` command onto your `PATH`, usable from
+Each of these installs a `texiom` command onto your `PATH`, usable from
 any directory.
 
 **Running from a git checkout without installing:**
 
 ```bash
-git clone https://github.com/MrzAhmadi/latexbuild.git
-cd latexbuild
-./latexbuild
+git clone https://github.com/MrzAhmadi/texiom.git
+cd texiom
+./texiom
 ```
 
 ## Usage
 
 ```bash
-latexbuild
+texiom
 ```
 
 It will interactively ask for the path to your `.tex` file (tab-completion
@@ -74,7 +74,7 @@ Path to the .tex file (or its directory): /path/to/your/project/paper.tex
 Or run it non-interactively:
 
 ```bash
-latexbuild --dir /path/to/your/project --file paper.tex
+texiom --dir /path/to/your/project --file paper.tex
 ```
 
 The resulting `paper.pdf` (and all `latexmk` auxiliary files) will appear
@@ -84,7 +84,7 @@ just want the `.pdf` and none of the auxiliary files.
 To rebuild automatically every time you save the file, pass `--watch`:
 
 ```bash
-latexbuild --dir /path/to/your/project --file paper.tex --watch
+texiom --dir /path/to/your/project --file paper.tex --watch
 ```
 
 This keeps running in the foreground and recompiles on every change to
@@ -99,19 +99,18 @@ spurious `latexmk` errors.
 For a rebuild-as-you-type experience, pass `--edit`:
 
 ```bash
-latexbuild --edit
+texiom --edit
 ```
 
-![latexbuild live browser editor](assets/sc1.png)
+![Texiom live browser editor](assets/sc1.png)
 
 No `--dir`/`--file` needed - the editor's project lives entirely inside a
-persistent Docker volume (`latexbuild-workspace`), not on your host
-filesystem. The first time you run it the project is empty; use the
-sidebar to create folders/files, upload existing files (images, `.bib`,
-etc.), rename, and delete - everything is managed from the browser. The
-volume persists across sessions, so your project is exactly as you left
-it the next time you run `latexbuild --edit`, even after the container
-exits.
+persistent Docker volume (`texiom-workspace`), not on your host
+filesystem. Use the sidebar to create folders/files, upload existing files
+(images, `.bib`, etc.), rename, and delete - everything is managed from
+the browser. The volume persists across sessions, so your project is
+exactly as you left it the next time you run `texiom --edit`, even after
+the container exits.
 
 The browser splits in two: your `.tex`/`.bib` source on the left, the
 compiled PDF on the right, with a file-tree sidebar for the project. Every
@@ -124,7 +123,7 @@ compile manually or switch to dark mode; the sidebar lets you switch
 between open files via tabs - see the in-app "⌨ Shortcuts" menu (or press
 F1) for the full list of keyboard shortcuts, including Ctrl+S to save.
 Ctrl+C in the terminal stops the session; the tab picks back up on its
-own once you run `--edit` again. Run `latexbuild --kill-edit` if you need
+own once you run `--edit` again. Run `texiom --kill-edit` if you need
 to stop a session without a terminal open (e.g. it's stuck or was
 disowned).
 
@@ -133,7 +132,7 @@ It's a small local web server (source and PDF only ever touch
 extensions beyond what's listed above.
 
 To wipe the persistent project and start over: `docker volume rm
-latexbuild-workspace` (only while no `--edit` session is running).
+texiom-workspace` (only while no `--edit` session is running).
 
 #### Rebuilding as you type, before you save (using your own editor instead)
 
@@ -166,7 +165,7 @@ Ctrl+S needed.
 |-------------------|-------------------------------------------------------------|
 | `-d, --dir DIR`   | Directory containing the `.tex` file (not used with `--edit`) |
 | `-f, --file FILE` | Name of the `.tex` file (`.tex` extension optional); not used with `--edit` |
-| `-t, --tag TAG`   | Docker image tag to use/build (default: `latexbuild`)         |
+| `-t, --tag TAG`   | Docker image tag to use/build (default: `texiom`)         |
 | `-r, --rebuild`   | Force a fresh image build even if one already exists        |
 | `-p, --pdf-only`  | Remove `latexmk`'s auxiliary files after a successful build, leaving only the `.pdf` |
 | `-w, --watch`     | Rebuild automatically whenever the `.tex` file changes, until Ctrl+C |
@@ -177,7 +176,7 @@ Ctrl+S needed.
 
 The first run builds the Docker image (a few minutes, since `texlive-full`
 is a large distribution); every run after that reuses the cached image, so
-compilation is fast. Upgrading `latexbuild` to a new version automatically
+compilation is fast. Upgrading `texiom` to a new version automatically
 rebuilds the image once if that version needs a different one - no manual
 `--rebuild` required.
 
@@ -188,7 +187,7 @@ VS Code with the [Dev Containers extension](https://marketplace.visualstudio.com
 and choose "Reopen in Container" for an interactive environment with the
 LaTeX Workshop extension pre-configured to build on save.
 
-## Using latexbuild as a GitHub Action
+## Using Texiom as a GitHub Action
 
 The same image is published to GHCR and available as a reusable GitHub
 Action, so any repo with a `.tex` file can build a PDF on every push
@@ -196,7 +195,7 @@ without installing anything:
 
 ```yaml
 - uses: actions/checkout@v4
-- uses: MrzAhmadi/latexbuild@main
+- uses: MrzAhmadi/texiom@main
   with:
     root_file: paper.tex
 ```
@@ -230,7 +229,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: MrzAhmadi/latexbuild@main
+      - uses: MrzAhmadi/texiom@main
         with:
           root_file: paper.tex
 
@@ -238,13 +237,6 @@ jobs:
         with:
           files: paper.pdf
 ```
-
-## What's inside the image
-
-- Ubuntu 24.04
-- `texlive-full` (covers `moderncv`, `biblatex`/`biber`, IEEE conference
-  classes, `tcolorbox`, `mdframed`, and virtually any other LaTeX package)
-- `latexmk`, `biber`, `make`, `git`
 
 ## License
 

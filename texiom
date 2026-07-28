@@ -4,13 +4,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 DOCKER_DIR="$SCRIPT_DIR/docker"
 VERSION="$(cat "$SCRIPT_DIR/VERSION" 2>/dev/null || echo "unknown")"
-IMAGE_TAG="latexbuild"
+IMAGE_TAG="texiom"
 FORCE_REBUILD=0
 PDF_ONLY=0
 WATCH=0
 EDIT_MODE=0
 EDIT_PORT=8765
-EDIT_VOLUME="latexbuild-workspace"
+EDIT_VOLUME="texiom-workspace"
 KILL_EDIT=0
 TEX_DIR=""
 TEX_FILE=""
@@ -21,24 +21,24 @@ bind 'set page-completions off' 2>/dev/null || true
 usage() {
     cat <<'USAGE'
 Usage:
-  latexbuild                              interactive prompts
-  latexbuild -d DIR -f FILE.tex           non-interactive
-  latexbuild --edit                       open the browser editor - your
-                                           project lives entirely inside a
-                                           persistent Docker volume, managed
-                                           from the browser (create/upload/
-                                           rename/delete files and folders);
-                                           -d/-f are not used with --edit
-  latexbuild -d DIR -f FILE.tex --rebuild force a fresh image build
-  latexbuild -d DIR -f FILE.tex --pdf-only
-  latexbuild -d DIR -f FILE.tex --watch
+  texiom                              interactive prompts
+  texiom -d DIR -f FILE.tex           non-interactive
+  texiom --edit                       open the browser editor - your
+                                       project lives entirely inside a
+                                       persistent Docker volume, managed
+                                       from the browser (create/upload/
+                                       rename/delete files and folders);
+                                       -d/-f are not used with --edit
+  texiom -d DIR -f FILE.tex --rebuild force a fresh image build
+  texiom -d DIR -f FILE.tex --pdf-only
+  texiom -d DIR -f FILE.tex --watch
 
 Options:
   -d, --dir DIR       Directory containing the .tex file (not used with --edit)
   -f, --file FILE     Name of the .tex file, extension optional (not used
                        with --edit); auto-detected if the directory has
                        exactly one .tex file
-  -t, --tag TAG       Docker image tag to use/build (default: latexbuild)
+  -t, --tag TAG       Docker image tag to use/build (default: texiom)
   -r, --rebuild       Force rebuild of the Docker image even if it exists
   -p, --pdf-only      Remove latexmk's auxiliary files after a successful
                        build, leaving only the .pdf next to the .tex source
@@ -63,7 +63,7 @@ while [[ $# -gt 0 ]]; do
         -w|--watch)    WATCH=1; shift ;;
         -e|--edit)     EDIT_MODE=1; shift ;;
         -k|--kill-edit) KILL_EDIT=1; shift ;;
-        -v|--version)  echo "latexbuild $VERSION"; exit 0 ;;
+        -v|--version)  echo "texiom $VERSION"; exit 0 ;;
         -h|--help)     usage ;;
         *) echo "Unknown option: $1" >&2; usage ;;
     esac
@@ -83,13 +83,13 @@ if [[ "$KILL_EDIT" -eq 1 ]]; then
 fi
 
 DOCKER_HASH="$(find "$DOCKER_DIR" -type f -not -path "$DOCKER_DIR/editor/*" -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1)"
-IMAGE_HASH="$(docker image inspect --format '{{ index .Config.Labels "latexbuild.dockerhash" }}' "$IMAGE_TAG" 2>/dev/null || true)"
+IMAGE_HASH="$(docker image inspect --format '{{ index .Config.Labels "texiom.dockerhash" }}' "$IMAGE_TAG" 2>/dev/null || true)"
 
 if [[ "$FORCE_REBUILD" -eq 1 ]] || [[ "$IMAGE_HASH" != "$DOCKER_HASH" ]]; then
     echo "Building image '$IMAGE_TAG' from $DOCKER_DIR (build inputs changed) ..."
     docker build \
-        --build-arg "LATEXBUILD_VERSION=$VERSION" \
-        --build-arg "LATEXBUILD_DOCKER_HASH=$DOCKER_HASH" \
+        --build-arg "TEXIOM_VERSION=$VERSION" \
+        --build-arg "TEXIOM_DOCKER_HASH=$DOCKER_HASH" \
         -t "$IMAGE_TAG" -f "$DOCKER_DIR/Dockerfile" "$DOCKER_DIR"
 else
     echo "Using existing image '$IMAGE_TAG' (build inputs unchanged)."
@@ -100,8 +100,8 @@ if [[ "$EDIT_MODE" -eq 1 ]]; then
     echo "Starting live editor (project: Docker volume '$EDIT_VOLUME') at http://127.0.0.1:$EDIT_PORT (Ctrl+C to stop) ..."
     docker run --rm -p "127.0.0.1:$EDIT_PORT:8000" \
         -v "$EDIT_VOLUME":/workspace -w /workspace \
-        -v "$DOCKER_DIR/editor":/opt/latexbuild-editor:ro \
-        "$IMAGE_TAG" python3 /opt/latexbuild-editor/server.py &
+        -v "$DOCKER_DIR/editor":/opt/texiom-editor:ro \
+        "$IMAGE_TAG" python3 /opt/texiom-editor/server.py &
     DOCKER_PID=$!
     trap 'kill "$DOCKER_PID" 2>/dev/null || true' INT TERM
     ( sleep 1
