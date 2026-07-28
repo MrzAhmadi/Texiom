@@ -327,6 +327,7 @@ body {
   display: none;
   position: absolute;
   inset: 0;
+  z-index: 5;
   margin: 0;
   padding: 20px;
   overflow: auto;
@@ -339,6 +340,7 @@ body {
   word-break: break-word;
 }
 #errorPanel.visible { display: block; }
+#pdf-pane:has(#errorPanel.visible) #pdfScroll { pointer-events: none; }
 
 #compileOverlay {
   display: none;
