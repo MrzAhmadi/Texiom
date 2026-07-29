@@ -313,6 +313,30 @@ body {
 #pdfZoomLabel { min-width: 38px; text-align: center; opacity: 0.75; }
 .pdf-toolbar-spacer { flex: 1; }
 
+#editorToolbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  background: var(--toolbar-bg);
+}
+#editorToolbar .icon-btn { font-size: 13px; padding: 1px 10px; min-width: 26px; }
+.toolbar-divider-v { width: 1px; height: 18px; background: var(--border); margin: 0 2px; }
+.btn-text {
+  font: 12px sans-serif;
+  padding: 3px 10px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: var(--button-bg);
+  color: var(--fg);
+  cursor: pointer;
+}
+.btn-text:hover { filter: brightness(1.1); }
+
 #stalePdfNotice {
   display: none;
   flex-shrink: 0;
@@ -488,6 +512,32 @@ body {
   background: rgba(0, 0, 0, 0.55);
 }
 #shortcutsModal.visible { display: flex; }
+
+#appearanceModal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+}
+#appearanceModal.visible { display: flex; }
+
+.appearance-body { padding: 6px 18px 18px; }
+.appearance-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.appearance-row:last-child { border-bottom: none; }
+.font-size-control { display: flex; align-items: center; gap: 8px; }
+.font-size-control .icon-btn { font-size: 14px; padding: 1px 8px; border: 1px solid var(--border); }
+#fontSizeLabel { min-width: 34px; text-align: center; opacity: 0.85; }
 
 .shortcuts-panel {
   width: 440px;

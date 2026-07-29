@@ -508,12 +508,23 @@ function toggleLineComment(cmInstance) {
   });
 }
 
-let editorFontSize = 14;
-function zoomEditor(delta) {
-  editorFontSize = delta === 0 ? 14 : Math.min(28, Math.max(9, editorFontSize + delta));
+const fontSizeLabel = document.getElementById('fontSizeLabel');
+const storedFontSize = parseInt(localStorage.getItem('texiom-editor-fontsize'), 10);
+let editorFontSize = Number.isFinite(storedFontSize) ? storedFontSize : 14;
+
+function applyEditorFontSize() {
   cm.getWrapperElement().style.fontSize = editorFontSize + 'px';
   cm.refresh();
+  if (fontSizeLabel) fontSizeLabel.textContent = editorFontSize + 'px';
+  localStorage.setItem('texiom-editor-fontsize', editorFontSize);
 }
+
+function zoomEditor(delta) {
+  editorFontSize = delta === 0 ? 14 : Math.min(28, Math.max(9, editorFontSize + delta));
+  applyEditorFontSize();
+}
+
+applyEditorFontSize();
 
 function toggleWordWrap() {
   cm.setOption('lineWrapping', !cm.getOption('lineWrapping'));
@@ -562,6 +573,40 @@ shortcutsClose.addEventListener('click', closeShortcuts);
 shortcutsModal.addEventListener('click', (e) => {
   if (e.target === shortcutsModal) closeShortcuts();
 });
+
+const appearanceModal = document.getElementById('appearanceModal');
+const appearanceBtn = document.getElementById('appearanceBtn');
+const appearanceClose = document.getElementById('appearanceClose');
+const fontSizeDecBtn = document.getElementById('fontSizeDecBtn');
+const fontSizeIncBtn = document.getElementById('fontSizeIncBtn');
+
+function openAppearance() { appearanceModal.classList.add('visible'); }
+function closeAppearance() { appearanceModal.classList.remove('visible'); }
+
+appearanceBtn.addEventListener('click', openAppearance);
+appearanceClose.addEventListener('click', closeAppearance);
+appearanceModal.addEventListener('click', (e) => {
+  if (e.target === appearanceModal) closeAppearance();
+});
+fontSizeDecBtn.addEventListener('click', () => zoomEditor(-1));
+fontSizeIncBtn.addEventListener('click', () => zoomEditor(1));
+
+const fmtBoldBtn = document.getElementById('fmtBoldBtn');
+const fmtItalicBtn = document.getElementById('fmtItalicBtn');
+const fmtSectionBtn = document.getElementById('fmtSectionBtn');
+const fmtSubsectionBtn = document.getElementById('fmtSubsectionBtn');
+const fmtSubsubsectionBtn = document.getElementById('fmtSubsubsectionBtn');
+
+function applyFormat(before, after) {
+  wrapSelection(cm, before, after);
+  cm.focus();
+}
+
+fmtBoldBtn.addEventListener('click', () => applyFormat('\\textbf{', '}'));
+fmtItalicBtn.addEventListener('click', () => applyFormat('\\textit{', '}'));
+fmtSectionBtn.addEventListener('click', () => applyFormat('\\section{', '}'));
+fmtSubsectionBtn.addEventListener('click', () => applyFormat('\\subsection{', '}'));
+fmtSubsubsectionBtn.addEventListener('click', () => applyFormat('\\subsubsection{', '}'));
 
 const currentFileLabel = document.getElementById('currentFile');
 const sidebar = document.getElementById('sidebar');
@@ -1278,5 +1323,9 @@ window.addEventListener('keydown', (e) => {
 
   if (e.key === 'Escape' && shortcutsModal.classList.contains('visible')) {
     closeShortcuts();
+  }
+
+  if (e.key === 'Escape' && appearanceModal.classList.contains('visible')) {
+    closeAppearance();
   }
 });

@@ -2,7 +2,7 @@
 
 # Texiom
 
-[![Version](https://img.shields.io/github/v/release/MrzAhmadi/texiom)](https://github.com/MrzAhmadi/texiom/releases)
+[![Version](https://img.shields.io/github/v/release/MrzAhmadi/Texiom)](https://github.com/MrzAhmadi/Texiom/releases)
 
 Compile any `.tex` file into a PDF using a containerized, full TeX Live
 distribution — no LaTeX installation required on the host machine.
@@ -33,7 +33,7 @@ exactly as written - `texiom` runs unmodified there.
 ## Installation
 
 Download the latest release from the
-[Releases page](https://github.com/MrzAhmadi/texiom/releases).
+[Releases page](https://github.com/MrzAhmadi/Texiom/releases).
 
 **Debian / Ubuntu:**
 
@@ -61,8 +61,8 @@ any directory.
 **Running from a git checkout without installing:**
 
 ```bash
-git clone https://github.com/MrzAhmadi/texiom.git
-cd texiom
+git clone https://github.com/MrzAhmadi/Texiom.git
+cd Texiom
 ./texiom
 ```
 
@@ -203,7 +203,7 @@ without installing anything:
 
 ```yaml
 - uses: actions/checkout@v4
-- uses: MrzAhmadi/texiom@main
+- uses: MrzAhmadi/Texiom@main
   with:
     root_file: paper.tex
 ```
@@ -237,7 +237,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: MrzAhmadi/texiom@main
+      - uses: MrzAhmadi/Texiom@main
         with:
           root_file: paper.tex
 

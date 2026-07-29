@@ -5,7 +5,7 @@ version: "${TEXIOM_VERSION}"
 description: "Compile any .tex file into a PDF using a containerized, full TeX Live distribution - no LaTeX installation required on the host."
 maintainer: "Reza <mrzahmadi96@gmail.com>"
 license: MIT
-homepage: "https://github.com/MrzAhmadi/texiom"
+homepage: "https://github.com/MrzAhmadi/Texiom"
 
 contents:
   - src: ./texiom

@@ -43,11 +43,7 @@
   <div class="toolbar-divider"></div>
 
   <div class="toolbar-group">
-    <label class="toggle">
-      <input type="checkbox" id="darkToggle">
-      <span class="toggle-track"><span class="toggle-thumb"></span></span>
-      <span class="toggle-label">Dark mode</span>
-    </label>
+    <button id="appearanceBtn" class="btn" title="Editor appearance">🎨 Appearance</button>
   </div>
 
   <div class="toolbar-divider"></div>
@@ -87,6 +83,14 @@
   <div id="sidebarDragDivider" class="drag-divider" title="Drag to resize" hidden></div>
   <div id="editor-pane">
     <div id="tabBar"></div>
+    <div id="editorToolbar">
+      <button id="fmtBoldBtn" class="icon-btn" title="Bold (Ctrl+B)"><b>B</b></button>
+      <button id="fmtItalicBtn" class="icon-btn" title="Italic (Ctrl+I)"><i>I</i></button>
+      <span class="toolbar-divider-v"></span>
+      <button id="fmtSectionBtn" class="btn-text" title="Insert \section{}">Section</button>
+      <button id="fmtSubsectionBtn" class="btn-text" title="Insert \subsection{}">Subsection</button>
+      <button id="fmtSubsubsectionBtn" class="btn-text" title="Insert \subsubsection{}">Subsubsection</button>
+    </div>
     <textarea id="editor"></textarea>
   </div>
   <div id="dragDivider" class="drag-divider" title="Drag to resize"></div>
@@ -138,6 +142,31 @@
         <div class="shortcut-row"><span class="shortcut-desc">Undo / redo</span><span class="shortcut-keys"><kbd class="mod-key">Ctrl</kbd>+<kbd>Z</kbd> / <kbd class="mod-key">Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span></div>
         <div class="shortcut-row"><span class="shortcut-desc">Select all</span><span class="shortcut-keys"><kbd class="mod-key">Ctrl</kbd>+<kbd>A</kbd></span></div>
         <div class="shortcut-row"><span class="shortcut-desc">Indent / outdent</span><span class="shortcut-keys"><kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd></span></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="appearanceModal">
+  <div class="shortcuts-panel">
+    <div class="shortcuts-header">
+      <span>Appearance</span>
+      <button id="appearanceClose" class="icon-btn" aria-label="Close">&times;</button>
+    </div>
+    <div class="appearance-body">
+      <div class="appearance-row">
+        <span>Dark mode</span>
+        <label class="toggle">
+          <input type="checkbox" id="darkToggle">
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        </label>
+      </div>
+      <div class="appearance-row">
+        <span>Editor font size</span>
+        <div class="font-size-control">
+          <button id="fontSizeDecBtn" class="icon-btn" title="Decrease font size">&minus;</button>
+          <span id="fontSizeLabel">14px</span>
+          <button id="fontSizeIncBtn" class="icon-btn" title="Increase font size">+</button>
+        </div>
       </div>
     </div>
   </div>
