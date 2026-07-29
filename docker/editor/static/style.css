@@ -6,6 +6,7 @@
   --button-bg: #eeeeee;
   --track-off: #cccccc;
   --track-on: #2e7d32;
+  --pdf-backdrop: #6e6e6e;
 }
 :root[data-theme="dark"] {
   --bg: #1e1e1e;
@@ -15,6 +16,7 @@
   --button-bg: #333333;
   --track-off: #555555;
   --track-on: #43a047;
+  --pdf-backdrop: #1a1a1a;
 }
 
 html, body { margin: 0; height: 100%; }
@@ -406,8 +408,6 @@ body {
   overflow: auto;
   background: var(--pdf-backdrop);
 }
-:root { --pdf-backdrop: #6e6e6e; }
-:root[data-theme="dark"] { --pdf-backdrop: #1a1a1a; }
 
 #pdfPages {
   display: flex;
