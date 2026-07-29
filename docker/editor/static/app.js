@@ -591,6 +591,45 @@ appearanceModal.addEventListener('click', (e) => {
 fontSizeDecBtn.addEventListener('click', () => zoomEditor(-1));
 fontSizeIncBtn.addEventListener('click', () => zoomEditor(1));
 
+const menuLabels = document.querySelectorAll('.menu-label');
+
+function closeAllMenus() {
+  document.querySelectorAll('.menu-dropdown.open').forEach(m => m.classList.remove('open'));
+  menuLabels.forEach(l => l.classList.remove('active'));
+}
+
+function anyMenuOpen() {
+  return document.querySelector('.menu-dropdown.open') !== null;
+}
+
+menuLabels.forEach(label => {
+  label.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const menu = document.getElementById(label.dataset.menu);
+    const wasOpen = menu.classList.contains('open');
+    closeAllMenus();
+    if (!wasOpen) {
+      menu.classList.add('open');
+      label.classList.add('active');
+    }
+  });
+  label.addEventListener('mouseenter', () => {
+    if (!anyMenuOpen()) return;
+    closeAllMenus();
+    document.getElementById(label.dataset.menu).classList.add('open');
+    label.classList.add('active');
+  });
+});
+
+document.querySelectorAll('.menu-dropdown').forEach(menu => {
+  menu.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (e.target.closest('.menu-row')) closeAllMenus();
+  });
+});
+
+window.addEventListener('click', closeAllMenus);
+
 const fmtBoldBtn = document.getElementById('fmtBoldBtn');
 const fmtItalicBtn = document.getElementById('fmtItalicBtn');
 const fmtSectionBtn = document.getElementById('fmtSectionBtn');
@@ -1327,5 +1366,9 @@ window.addEventListener('keydown', (e) => {
 
   if (e.key === 'Escape' && appearanceModal.classList.contains('visible')) {
     closeAppearance();
+  }
+
+  if (e.key === 'Escape' && anyMenuOpen()) {
+    closeAllMenus();
   }
 });
