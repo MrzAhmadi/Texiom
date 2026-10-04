@@ -2,8 +2,8 @@ _texiom_completions() {
     local cur prev
     _init_completion || return
 
-    local long_opts="--dir --file --tag --rebuild --pdf-only --watch --edit --version --help"
-    local short_opts="-d -f -t -r -p -w -e -v -h"
+    local long_opts="--dir --file --tag --rebuild --engine --pdf-only --watch --edit --version --help"
+    local short_opts="-d -f -t -r -E -p -w -e -v -h"
 
     case "$prev" in
         -d|--dir)
@@ -26,6 +26,10 @@ _texiom_completions() {
             else
                 _filedir tex
             fi
+            return
+            ;;
+        -E|--engine)
+            COMPREPLY=($(compgen -W "pdflatex xelatex lualatex" -- "$cur"))
             return
             ;;
         -t|--tag)

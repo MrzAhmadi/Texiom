@@ -89,6 +89,9 @@ The resulting `paper.pdf` (and all `latexmk` auxiliary files) will appear
 next to `paper.tex` in the original directory. Pass `--pdf-only` if you
 just want the `.pdf` and none of the auxiliary files.
 
+Documents that need `fontspec` (custom OpenType/TrueType fonts) must be built
+with XeTeX or LuaTeX: pass `--engine xelatex` or `--engine lualatex`.
+
 To rebuild automatically every time you save the file, pass `--watch`:
 
 ```bash
@@ -175,6 +178,7 @@ Ctrl+S needed.
 | `-f, --file FILE` | Name of the `.tex` file (`.tex` extension optional); not used with `--edit` |
 | `-t, --tag TAG`   | Docker image tag to use/build (default: `texiom`)         |
 | `-r, --rebuild`   | Force a fresh image build even if one already exists        |
+| `-E, --engine ENGINE` | LaTeX engine: `pdflatex` (default), `xelatex` or `lualatex`; not used with `--edit` |
 | `-p, --pdf-only`  | Remove `latexmk`'s auxiliary files after a successful build, leaving only the `.pdf` |
 | `-w, --watch`     | Rebuild automatically whenever the `.tex` file changes, until Ctrl+C |
 | `-e, --edit`      | Open the browser editor for your persistent in-container project, until Ctrl+C |

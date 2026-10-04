@@ -7,6 +7,7 @@ VERSION="$(cat "$SCRIPT_DIR/VERSION" 2>/dev/null || echo "unknown")"
 IMAGE_TAG="texiom"
 FORCE_REBUILD=0
 PDF_ONLY=0
+ENGINE="pdflatex"
 WATCH=0
 EDIT_MODE=0
 EDIT_PORT=8765
@@ -31,6 +32,7 @@ Usage:
                                        -d/-f are not used with --edit
   texiom -d DIR -f FILE.tex --rebuild force a fresh image build
   texiom -d DIR -f FILE.tex --pdf-only
+  texiom -d DIR -f FILE.tex --engine xelatex
   texiom -d DIR -f FILE.tex --watch
 
 Options:
@@ -40,6 +42,8 @@ Options:
                        exactly one .tex file
   -t, --tag TAG       Docker image tag to use/build (default: texiom)
   -r, --rebuild       Force rebuild of the Docker image even if it exists
+  -E, --engine ENGINE LaTeX engine: pdflatex (default), xelatex or lualatex
+                       (not used with --edit)
   -p, --pdf-only      Remove latexmk's auxiliary files after a successful
                        build, leaving only the .pdf next to the .tex source
   -w, --watch         Rebuild automatically whenever the .tex file (or
@@ -59,6 +63,7 @@ while [[ $# -gt 0 ]]; do
         -f|--file)     TEX_FILE="$2"; shift 2 ;;
         -t|--tag)      IMAGE_TAG="$2"; shift 2 ;;
         -r|--rebuild)  FORCE_REBUILD=1; shift ;;
+        -E|--engine)   ENGINE="$2"; shift 2 ;;
         -p|--pdf-only) PDF_ONLY=1; shift ;;
         -w|--watch)    WATCH=1; shift ;;
         -e|--edit)     EDIT_MODE=1; shift ;;
@@ -68,6 +73,13 @@ while [[ $# -gt 0 ]]; do
         *) echo "Unknown option: $1" >&2; usage ;;
     esac
 done
+
+case "$ENGINE" in
+    pdflatex) LATEXMK_ENGINE="-pdf" ;;
+    xelatex)  LATEXMK_ENGINE="-xelatex" ;;
+    lualatex) LATEXMK_ENGINE="-lualatex" ;;
+    *) echo "Error: unknown engine '$ENGINE' (use pdflatex, xelatex or lualatex)." >&2; exit 1 ;;
+esac
 
 if [[ "$KILL_EDIT" -eq 1 ]]; then
     CONTAINERS="$(docker ps --filter "publish=$EDIT_PORT" --format '{{.ID}} {{.Names}} {{.Image}}')"
@@ -152,11 +164,11 @@ fi
 if [[ "$WATCH" -eq 1 ]]; then
     echo "Watching '$TEX_FILE' in '$TEX_DIR' - rebuilding on every change (Ctrl+C to stop) ..."
     docker run --rm -v "$TEX_DIR":/workspace -w /workspace "$IMAGE_TAG" \
-        latexmk -pvc -view=none -pdf -interaction=nonstopmode -halt-on-error "$TEX_FILE" || true
+        latexmk -pvc -view=none $LATEXMK_ENGINE -interaction=nonstopmode -halt-on-error "$TEX_FILE" || true
 else
-    echo "Compiling '$TEX_FILE' in '$TEX_DIR' ..."
+    echo "Compiling '$TEX_FILE' in '$TEX_DIR' with $ENGINE ..."
     docker run --rm -v "$TEX_DIR":/workspace -w /workspace "$IMAGE_TAG" \
-        latexmk -pdf -interaction=nonstopmode -halt-on-error "$TEX_FILE"
+        latexmk $LATEXMK_ENGINE -interaction=nonstopmode -halt-on-error "$TEX_FILE"
 fi
 
 PDF_FILE="${TEX_FILE%.tex}.pdf"
