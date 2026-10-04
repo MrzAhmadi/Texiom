@@ -181,7 +181,7 @@ fi
 
 if [[ "$PDF_ONLY" -eq 1 ]]; then
     BASE_NAME="${TEX_FILE%.tex}"
-    for ext in aux log out toc lof lot fls fdb_latexmk synctex.gz bbl blg bcf run.xml nav snm vrb; do
+    for ext in aux log out toc lof lot fls fdb_latexmk synctex.gz bbl blg bcf run.xml nav snm vrb xdv; do
         rm -f "$TEX_DIR/$BASE_NAME.$ext"
     done
     echo "Removed auxiliary build files; only '$PDF_FILE' remains."
