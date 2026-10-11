@@ -209,6 +209,7 @@ Ctrl+S needed.
 | `-t, --tag TAG`   | Docker image tag to use/build (default: `texiom`)         |
 | `-r, --rebuild`   | Force a fresh image build even if one already exists        |
 | `--no-pull`       | Never download the prebuilt image from GHCR; always build locally |
+| `--shell-escape`  | Allow LaTeX to run external programs (needed by `minted`) |
 | `--apt PKGS`      | Install extra apt packages (comma-separated, repeatable) |
 | `--pip PKGS`      | Install extra pip packages (comma-separated, repeatable) |
 | `-E, --engine ENGINE` | LaTeX engine: `pdflatex` (default), `xelatex` or `lualatex`; not used with `--edit` |
@@ -238,6 +239,7 @@ file = "main.tex"     # main file (skips the prompt)
 engine = "xelatex"    # pdflatex (default), xelatex or lualatex
 pdf_only = true       # remove auxiliary files after a successful build
 watch = false         # rebuild on every change
+shell_escape = false  # allow external programs (needed by minted)
 apt = ["inkscape", "poppler-utils"]   # extra system packages
 pip = ["pygments"]                    # extra Python packages
 ```
@@ -257,6 +259,9 @@ texiom -d . --apt inkscape,ghostscript --pip pygments
 Texiom adds a small layer on top of the base image and caches it, so the
 install runs once per package set (and again only when the base image changes).
 Extra packages apply to compiling, not to `--edit`.
+
+For `minted`, add `pygments` under `pip` and enable `shell_escape = true` (or
+pass `--shell-escape`).
 
 ## Using as a VS Code Dev Container
 

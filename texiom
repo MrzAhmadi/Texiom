@@ -11,6 +11,7 @@ REGISTRY_IMAGE="ghcr.io/mrzahmadi/texiom:latest"
 PDF_ONLY=0
 ENGINE=""
 WATCH=0
+SHELL_ESCAPE=0
 EDIT_MODE=0
 EDIT_PORT=8765
 EDIT_VOLUME="texiom-workspace"
@@ -52,6 +53,7 @@ Options:
                        (not used with --edit)
       --apt PKGS      Install extra apt packages (comma-separated, repeatable)
       --pip PKGS      Install extra pip packages (comma-separated, repeatable)
+      --shell-escape  Allow LaTeX to run external programs (needed by minted)
   -p, --pdf-only      Remove latexmk's auxiliary files after a successful
                        build, leaving only the .pdf next to the .tex source
   -w, --watch         Rebuild automatically whenever the .tex file (or
@@ -63,7 +65,7 @@ Options:
   -h, --help          Show this help message
 
 A texiom.toml next to the .tex file can set file, engine, pdf_only, watch,
-apt and pip (lists);
+shell_escape, apt and pip (lists);
 command-line flags override it.
 USAGE
     exit 0
@@ -118,6 +120,7 @@ load_config() {
             engine)   [[ -n "$ENGINE" ]] || ENGINE="$val" ;;
             pdf_only) [[ "$val" != true ]] || PDF_ONLY=1 ;;
             watch)    [[ "$val" != true ]] || WATCH=1 ;;
+            shell_escape) [[ "$val" != true ]] || SHELL_ESCAPE=1 ;;
             apt)      APT_PKGS+=" $val" ;;
             pip)      PIP_PKGS+=" $val" ;;
             *) echo "Warning: unknown key '$key' in $conf" >&2 ;;
@@ -145,6 +148,7 @@ while [[ $# -gt 0 ]]; do
         -E|--engine)   ENGINE="$2"; shift 2 ;;
         --apt)         APT_PKGS+=" ${2//,/ }"; shift 2 ;;
         --pip)         PIP_PKGS+=" ${2//,/ }"; shift 2 ;;
+        --shell-escape) SHELL_ESCAPE=1; shift ;;
         -p|--pdf-only) PDF_ONLY=1; shift ;;
         -w|--watch)    WATCH=1; shift ;;
         -e|--edit)     EDIT_MODE=1; shift ;;
@@ -267,6 +271,8 @@ TEX_DIR="$(cd "$TEX_DIR" && pwd)"
 cd "$TEX_DIR"
 load_config
 set_engine
+SHELL_ESCAPE_OPT=""
+[[ "$SHELL_ESCAPE" -eq 0 ]] || SHELL_ESCAPE_OPT="-shell-escape"
 build_extras_image
 
 if [[ -z "$TEX_FILE" ]]; then
@@ -287,11 +293,11 @@ fi
 if [[ "$WATCH" -eq 1 ]]; then
     echo "Watching '$TEX_FILE' in '$TEX_DIR' - rebuilding on every change (Ctrl+C to stop) ..."
     docker run --rm -v "$TEX_DIR":/workspace -w /workspace "$IMAGE_TAG" \
-        latexmk -pvc -view=none $LATEXMK_ENGINE -interaction=nonstopmode -halt-on-error "$TEX_FILE" || true
+        latexmk -pvc -view=none $LATEXMK_ENGINE $SHELL_ESCAPE_OPT -interaction=nonstopmode -halt-on-error "$TEX_FILE" || true
 else
     echo "Compiling '$TEX_FILE' in '$TEX_DIR' with $ENGINE ..."
     docker run --rm -v "$TEX_DIR":/workspace -w /workspace "$IMAGE_TAG" \
-        latexmk $LATEXMK_ENGINE -interaction=nonstopmode -halt-on-error "$TEX_FILE"
+        latexmk $LATEXMK_ENGINE $SHELL_ESCAPE_OPT -interaction=nonstopmode -halt-on-error "$TEX_FILE"
 fi
 
 PDF_FILE="${TEX_FILE%.tex}.pdf"
