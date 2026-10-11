@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Texiom – Docker LaTeX compiler and live browser editor</title>
+<meta name="description" content="Texiom compiles LaTeX to PDF with pdflatex, xelatex or lualatex inside Docker, and includes a live browser editor. No TeX Live install needed.">
+<link rel="canonical" href="https://mrzahmadi.github.io/Texiom/">
+<link rel="icon" href="logo.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Texiom – Docker LaTeX compiler and live browser editor">
+<meta property="og:description" content="Build LaTeX to PDF without installing TeX Live. pdflatex, xelatex, lualatex, live editor, GitHub Action.">
+<meta property="og:url" content="https://mrzahmadi.github.io/Texiom/">
+<meta property="og:image" content="https://mrzahmadi.github.io/Texiom/sc1.png">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Texiom",
+"applicationCategory":"DeveloperApplication","operatingSystem":"Linux, WSL2",
+"description":"Docker-based LaTeX compiler and live browser editor.",
+"url":"https://mrzahmadi.github.io/Texiom/",
+"codeRepository":"https://github.com/MrzAhmadi/Texiom",
+"license":"https://opensource.org/licenses/MIT",
+"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},
+"author":{"@type":"Person","name":"MrzAhmadi"}}
+</script>
+<style>
+:root{--bg:#fff;--fg:#14181f;--muted:#586172;--card:#f4f6fa;--line:#e1e5ec;--accent:#0b6bcb}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1116;--fg:#e8ebf0;--muted:#9aa4b5;--card:#171b22;--line:#262c36;--accent:#58a6ff}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.wrap{max-width:960px;margin:0 auto;padding:0 16px}
+header.hero{text-align:center;padding:56px 0 32px}
+.hero img.logo{width:112px;height:112px}
+h1{font-size:2.6rem;margin:12px 0 8px}
+.tag{color:var(--muted);font-size:1.15rem;max-width:640px;margin:0 auto 24px}
+.btns a{display:inline-block;margin:4px;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;border:1px solid var(--accent)}
+.btns a.p{background:var(--accent);color:#fff}
+.btns a.s{color:var(--accent)}
+.shot{width:100%;height:auto;border:1px solid var(--line);border-radius:10px;margin:32px 0}
+h2{margin:48px 0 16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+.card h3{margin:0 0 4px;font-size:1.05rem}
+.card p{margin:0;color:var(--muted)}
+pre{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px;overflow-x:auto}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em}
+a{color:var(--accent)}
+details{border-bottom:1px solid var(--line);padding:12px 0}
+summary{cursor:pointer;font-weight:600}
+footer{margin:56px 0 32px;color:var(--muted);text-align:center;font-size:.9rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <img class="logo" src="logo.png" alt="Texiom logo">
+  <h1>Texiom</h1>
+  <p class="tag">A Docker-based LaTeX compiler and live browser editor. Build <code>.tex</code> to PDF with pdflatex, xelatex or lualatex, with no TeX Live installation on your machine.</p>
+  <div class="btns">
+    <a class="p" href="https://github.com/MrzAhmadi/Texiom/releases/latest">Download</a>
+    <a class="s" href="https://github.com/MrzAhmadi/Texiom">View on GitHub</a>
+  </div>
+</header>
+
+<main>
+<img class="shot" src="sc1.png" alt="Texiom live LaTeX editor in the browser, source on the left and PDF on the right" width="1920" height="989">
+
+<h2>Features</h2>
+<div class="grid">
+  <div class="card"><h3>No local LaTeX install</h3><p>A full texlive-full image with latexmk and biber does the building.</p></div>
+  <div class="card"><h3>Three engines</h3><p>pdflatex, xelatex and lualatex, including fontspec and custom fonts.</p></div>
+  <div class="card"><h3>Live browser editor</h3><p>Source and PDF side by side, auto-recompile, SyncTeX jumps and dark mode.</p></div>
+  <div class="card"><h3>Watch mode</h3><p>Rebuild on every save while you use your own editor.</p></div>
+  <div class="card"><h3>GitHub Action</h3><p>Build your LaTeX PDF in CI with one step.</p></div>
+  <div class="card"><h3>Dev Container</h3><p>VS Code with LaTeX Workshop preconfigured.</p></div>
+</div>
+
+<h2>Install</h2>
+<p>Requires <a href="https://docs.docker.com/get-docker/">Docker</a> and Bash. On Windows, use WSL2.</p>
+<pre><code># Debian / Ubuntu
+sudo dpkg -i texiom_*.deb
+
+# Fedora / RHEL
+sudo rpm -i texiom-*.rpm
+
+# Any Linux
+tar -xzf texiom-*-linux.tar.gz &amp;&amp; cd texiom-*/ &amp;&amp; sudo ./install.sh</code></pre>
+<p>Packages are on the <a href="https://github.com/MrzAhmadi/Texiom/releases">Releases page</a>.</p>
+
+<h2>Use</h2>
+<pre><code># compile a file
+texiom --dir ~/my-paper --file paper.tex
+
+# use XeLaTeX or LuaLaTeX
+texiom --dir ~/my-paper --file paper.tex --engine xelatex
+
+# rebuild on every save
+texiom --dir ~/my-paper --file paper.tex --watch
+
+# live editor in the browser
+texiom --edit</code></pre>
+
+<h2>GitHub Action</h2>
+<pre><code>- uses: actions/checkout@v4
+- uses: MrzAhmadi/Texiom@main
+  with:
+    root_file: paper.tex</code></pre>
+
+<h2>FAQ</h2>
+<details><summary>What is Texiom?</summary><p>Texiom is an open source command line tool that compiles LaTeX documents inside a Docker container and offers a local live editor in your browser.</p></details>
+<details><summary>Is it an alternative to Overleaf?</summary><p>For local, offline work, yes. It runs on your machine, your files stay on it, and the editor only listens on 127.0.0.1. It has no real-time collaboration and is not a full IDE.</p></details>
+<details><summary>Does it work on Windows or macOS?</summary><p>Windows works through WSL2. Packages target Linux; the script itself needs Bash and Docker.</p></details>
+<details><summary>What license is it under?</summary><p>MIT.</p></details>
+</main>
+
+<footer>Texiom is MIT licensed. <a href="https://github.com/MrzAhmadi/Texiom">Source on GitHub</a></footer>
+</div>
+</body>
+</html>
