@@ -6,6 +6,8 @@ DOCKER_DIR="$SCRIPT_DIR/docker"
 VERSION="$(cat "$SCRIPT_DIR/VERSION" 2>/dev/null || echo "unknown")"
 IMAGE_TAG="texiom"
 FORCE_REBUILD=0
+NO_PULL=0
+REGISTRY_IMAGE="ghcr.io/mrzahmadi/texiom:latest"
 PDF_ONLY=0
 ENGINE="pdflatex"
 WATCH=0
@@ -31,6 +33,7 @@ Usage:
                                        rename/delete files and folders);
                                        -d/-f are not used with --edit
   texiom -d DIR -f FILE.tex --rebuild force a fresh image build
+  texiom -d DIR -f FILE.tex --no-pull build the image locally, never download it
   texiom -d DIR -f FILE.tex --pdf-only
   texiom -d DIR -f FILE.tex --engine xelatex
   texiom -d DIR -f FILE.tex --watch
@@ -42,6 +45,7 @@ Options:
                        exactly one .tex file
   -t, --tag TAG       Docker image tag to use/build (default: texiom)
   -r, --rebuild       Force rebuild of the Docker image even if it exists
+      --no-pull       Never download the prebuilt image from GHCR; build locally
   -E, --engine ENGINE LaTeX engine: pdflatex (default), xelatex or lualatex
                        (not used with --edit)
   -p, --pdf-only      Remove latexmk's auxiliary files after a successful
@@ -63,6 +67,7 @@ while [[ $# -gt 0 ]]; do
         -f|--file)     TEX_FILE="$2"; shift 2 ;;
         -t|--tag)      IMAGE_TAG="$2"; shift 2 ;;
         -r|--rebuild)  FORCE_REBUILD=1; shift ;;
+        --no-pull)     NO_PULL=1; shift ;;
         -E|--engine)   ENGINE="$2"; shift 2 ;;
         -p|--pdf-only) PDF_ONLY=1; shift ;;
         -w|--watch)    WATCH=1; shift ;;
@@ -94,8 +99,54 @@ if [[ "$KILL_EDIT" -eq 1 ]]; then
     exit 0
 fi
 
-DOCKER_HASH="$(find "$DOCKER_DIR" -type f -not -path "$DOCKER_DIR/editor/*" -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1)"
+# Relative paths + C-locale sort so the hash matches the one CI bakes into the GHCR image.
+DOCKER_HASH="$(cd "$DOCKER_DIR/.." && find docker -type f -not -path 'docker/editor/*' -print0 | LC_ALL=C sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1)"
 IMAGE_HASH="$(docker image inspect --format '{{ index .Config.Labels "texiom.dockerhash" }}' "$IMAGE_TAG" 2>/dev/null || true)"
+
+# Read the build hash baked into the prebuilt image without downloading it
+# (a few KB instead of ~2.7 GB). Prints nothing if anything goes wrong, in
+# which case we fall back to pulling and comparing.
+remote_image_hash() {
+    command -v curl >/dev/null 2>&1 || return 0
+    local repo="${REGISTRY_IMAGE#ghcr.io/}"; repo="${repo%%:*}"
+    local tag="${REGISTRY_IMAGE##*:}"
+    local token manifest digest
+    token="$(curl -fsS --max-time 15 "https://ghcr.io/token?scope=repository:${repo}:pull" 2>/dev/null \
+        | grep -o '"token":"[^"]*"' | head -1 | cut -d'"' -f4)" || return 0
+    [[ -n "$token" ]] || return 0
+    manifest="$(curl -fsS --max-time 15 -H "Authorization: Bearer $token" \
+        -H "Accept: application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json" \
+        "https://ghcr.io/v2/${repo}/manifests/${tag}" 2>/dev/null)" || return 0
+    digest="$(printf '%s' "$manifest" | tr -d '\n ' | grep -o '"config":{[^}]*"digest":"sha256:[0-9a-f]*"' | grep -o 'sha256:[0-9a-f]*')" || return 0
+    [[ -n "$digest" ]] || return 0
+    curl -fsSL --max-time 15 -H "Authorization: Bearer $token" \
+        "https://ghcr.io/v2/${repo}/blobs/${digest}" 2>/dev/null \
+        | grep -o '"texiom.dockerhash":"[0-9a-f]*"' | head -1 | cut -d'"' -f4 || true
+}
+
+REMOTE_HASH=""
+if [[ "$FORCE_REBUILD" -eq 0 ]] && [[ "$NO_PULL" -eq 0 ]] && [[ "$IMAGE_HASH" != "$DOCKER_HASH" ]]; then
+    REMOTE_HASH="$(remote_image_hash)"
+fi
+
+if [[ "$FORCE_REBUILD" -eq 0 ]] && [[ "$NO_PULL" -eq 0 ]] && [[ "$IMAGE_HASH" != "$DOCKER_HASH" ]] \
+        && [[ -n "$REMOTE_HASH" ]] && [[ "$REMOTE_HASH" != "$DOCKER_HASH" ]]; then
+    echo "Prebuilt image is for a different version than this install; building locally."
+elif [[ "$FORCE_REBUILD" -eq 0 ]] && [[ "$NO_PULL" -eq 0 ]] && [[ "$IMAGE_HASH" != "$DOCKER_HASH" ]]; then
+    echo "Trying prebuilt image $REGISTRY_IMAGE ..."
+    if docker pull "$REGISTRY_IMAGE" >/dev/null 2>&1; then
+        PULLED_HASH="$(docker image inspect --format '{{ index .Config.Labels "texiom.dockerhash" }}' "$REGISTRY_IMAGE" 2>/dev/null || true)"
+        if [[ "$PULLED_HASH" == "$DOCKER_HASH" ]]; then
+            docker tag "$REGISTRY_IMAGE" "$IMAGE_TAG"
+            IMAGE_HASH="$PULLED_HASH"
+            echo "Using prebuilt image (matches this version)."
+        else
+            echo "Prebuilt image does not match this version; building locally."
+        fi
+    else
+        echo "Prebuilt image unavailable; building locally."
+    fi
+fi
 
 if [[ "$FORCE_REBUILD" -eq 1 ]] || [[ "$IMAGE_HASH" != "$DOCKER_HASH" ]]; then
     echo "Building image '$IMAGE_TAG' from $DOCKER_DIR (build inputs changed) ..."

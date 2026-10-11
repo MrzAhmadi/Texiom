@@ -208,6 +208,7 @@ Ctrl+S needed.
 | `-f, --file FILE` | Name of the `.tex` file (`.tex` extension optional); not used with `--edit` |
 | `-t, --tag TAG`   | Docker image tag to use/build (default: `texiom`)         |
 | `-r, --rebuild`   | Force a fresh image build even if one already exists        |
+| `--no-pull`       | Never download the prebuilt image from GHCR; always build locally |
 | `-E, --engine ENGINE` | LaTeX engine: `pdflatex` (default), `xelatex` or `lualatex`; not used with `--edit` |
 | `-p, --pdf-only`  | Remove `latexmk`'s auxiliary files after a successful build, leaving only the `.pdf` |
 | `-w, --watch`     | Rebuild automatically whenever the `.tex` file changes, until Ctrl+C |
@@ -216,8 +217,11 @@ Ctrl+S needed.
 | `-v, --version`   | Show the installed version                                  |
 | `-h, --help`      | Show usage                                                   |
 
-The first run builds the Docker image (a few minutes, since `texlive-full`
-is a large distribution); every run after that reuses the cached image, so
+The first run downloads the prebuilt image from GitHub Container Registry
+(`ghcr.io/mrzahmadi/texiom`, a few GB). If it is unavailable, or doesn't match
+your installed version, `texiom` builds the image locally instead (a few
+minutes, since `texlive-full` is a large distribution) - pass `--no-pull` to
+always build locally. Every run after that reuses the cached image, so
 compilation is fast. Upgrading `texiom` to a new version automatically
 rebuilds the image once if that version needs a different one - no manual
 `--rebuild` required.
