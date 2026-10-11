@@ -10,6 +10,7 @@ import {
   uploadInProgress,
 } from './state.js';
 import { cm } from './editor.js';
+import { applyMarks, resetDiagnostics } from './diagnostics.js';
 
 const tabBarEl = document.getElementById('tabBar');
 const currentFileLabel = document.getElementById('currentFile');
@@ -98,7 +99,7 @@ export function resetToNoFileOpen() {
   setSuppressDirty(false);
   setDirty(false);
   setCurrentFileLabel(null);
-  errorPanel.classList.remove('visible');
+  resetDiagnostics();
   setActiveCompileState('idle');
   clearPdfView();
   setOpenTabs([]);
@@ -109,22 +110,29 @@ export function resetToNoFileOpen() {
 
 let selectRequestToken = 0;
 
-export function selectFile(path) {
-  if (activeCompileState !== 'idle' && path === lastTreeCurrent) return;
-  if (uploadInProgress) return;
-  if (isDirty && !confirm('Discard unsaved changes and open "' + path + '"?')) return;
+export function selectFile(path, { keepRoot = false } = {}) {
+  if (activeCompileState !== 'idle' && path === lastTreeCurrent) return null;
+  if (uploadInProgress) return null;
+  if (isDirty && !confirm('Discard unsaved changes and open "' + path + '"?')) return null;
   const token = ++selectRequestToken;
-  fetch('/select', { method: 'POST', body: path })
+  return fetch(keepRoot ? '/select?keep_root=true' : '/select', { method: 'POST', body: path })
     .then(r => r.json())
     .then(async (data) => {
       if (!data.ok || token !== selectRequestToken) return;
       setDirty(false);
-      errorPanel.classList.remove('visible');
+      if (!data.keep_root) resetDiagnostics();
       await loadSource();
       if (token !== selectRequestToken) return;
       setCurrentFileLabel(data.file);
       openTab(data.file);
       loadTree();
+      applyMarks();
+
+      if (data.keep_root) {
+        status.className = 'ok';
+        status.textContent = 'opened';
+        return;
+      }
 
       if (!data.is_tex) {
         setActiveCompileState('idle');

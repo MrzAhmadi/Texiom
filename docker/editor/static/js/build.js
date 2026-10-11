@@ -1,6 +1,7 @@
 import { cm } from './editor.js';
 import { refreshPdf } from './pdf.js';
 import { renderCurrentTree, loadTree } from './filetree.js';
+import { setDiagnostics, resetDiagnostics, showPanel, togglePanel, hasDiagnostics } from './diagnostics.js';
 import {
   isDirty, setDirty, suppressDirty,
   activeCompileState, setActiveCompileStateValue,
@@ -83,6 +84,7 @@ cm.on('change', () => {
 });
 
 compileNowBtn.addEventListener('click', () => compile());
+status.addEventListener('click', () => { if (hasDiagnostics()) togglePanel(); });
 
 function updateCompileOverlay() {
   const busy = activeCompileState === 'queued' || activeCompileState === 'compiling';
@@ -106,17 +108,27 @@ function finishActiveCompile(file) {
     .then(data => {
       if (data.state !== 'done') return;
       loadTree();
+      const diagnostics = data.diagnostics || [];
       if (data.ok) {
         if (lastTreeCurrent === file) setDirty(false);
         status.className = 'ok';
-        status.textContent = 'built';
+        if (diagnostics.length) {
+          setDiagnostics(diagnostics, '');
+          status.textContent = 'built · ' + diagnostics.length + (diagnostics.length === 1 ? ' warning' : ' warnings');
+          status.title = 'Click to show warnings';
+        } else {
+          resetDiagnostics();
+          status.textContent = 'built';
+          status.title = '';
+        }
         errorPanel.classList.remove('visible');
         refreshPdf(true, true);
       } else {
         status.className = 'err';
         status.textContent = 'build failed';
-        errorPanel.textContent = data.log;
-        errorPanel.classList.add('visible');
+        status.title = 'Click to show errors';
+        setDiagnostics(diagnostics, data.log);
+        showPanel();
         errorPanel.focus();
       }
     });

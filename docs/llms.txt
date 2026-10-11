@@ -2,11 +2,11 @@
 
 > Texiom is a Docker-based LaTeX compiler and live browser editor for Linux and WSL2. It builds any .tex file into a PDF with pdflatex, xelatex or lualatex (via latexmk) without installing TeX Live on the host; the only requirement is Docker and Bash.
 
-Current version: 0.0.63.
+Current version: 0.0.64.
 
 Key features:
 - Compile: `texiom -d DIR -f FILE.tex`, with `--engine`, `--watch`, `--pdf-only`, `--shell-escape`
-- Live browser editor: `texiom --edit` (source and PDF side by side, auto-recompile, SyncTeX navigation, project stored in a persistent Docker volume)
+- Live browser editor: `texiom --edit` (source and PDF side by side, auto-recompile, clickable build errors with jump-to-line, SyncTeX navigation, project stored in a persistent Docker volume)
 - Per-project config: `texiom.toml` next to the .tex file (file, engine, pdf_only, watch, shell_escape, apt, pip)
 - Extra packages: `--apt` / `--pip` (or the same keys in texiom.toml) install into a small cached layer on top of the base image
 - Prebuilt image from GHCR; `--no-pull` forces a local build

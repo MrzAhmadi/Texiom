@@ -35,7 +35,10 @@ def compile_status(file: str):
     result = compile_results.get(file)
     if result is None:
         return JSONResponse({"state": "idle"})
-    return JSONResponse({"state": "done", "ok": result["ok"], "log": result["log"]})
+    return JSONResponse({
+        "state": "done", "ok": result["ok"], "log": result["log"],
+        "diagnostics": result.get("diagnostics", []),
+    })
 
 
 @router.get("/compile-queue")

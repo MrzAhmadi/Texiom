@@ -2,6 +2,7 @@ import asyncio
 import os
 from pathlib import Path
 
+from .diagnostics import parse_log
 from .workspace import WORKSPACE_ROOT, workspace
 
 AUX_EXTENSIONS = [
@@ -40,19 +41,26 @@ async def compile_worker():
         rel = Path(file_str)
         full = WORKSPACE_ROOT / rel
         process = await asyncio.create_subprocess_exec(
-            "latexmk", "-pdf", "-synctex=1", "-interaction=nonstopmode", "-halt-on-error", rel.name,
+            "latexmk", "-pdf", "-synctex=1", "-file-line-error", "-interaction=nonstopmode", "-halt-on-error", rel.name,
             cwd=str(full.parent),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
         stdout, stderr = await process.communicate()
         ok = process.returncode == 0 and full.with_suffix(".pdf").exists()
+        try:
+            log_text = full.with_suffix(".log").read_text(errors="replace")
+        except OSError:
+            log_text = ""
+        diagnostics = parse_log(log_text, full.parent, file_str)
+        if not ok and not any(d["severity"] == "error" for d in diagnostics):
+            diagnostics += parse_log(stdout.decode(errors="replace"), full.parent, file_str)
         if ok:
             base = str(full.with_suffix(""))
             for ext in AUX_EXTENSIONS:
                 Path(f"{base}.{ext}").unlink(missing_ok=True)
         log = (stdout.decode(errors="replace") + stderr.decode(errors="replace"))[-4000:]
-        compile_results[file_str] = {"ok": ok, "log": log}
+        compile_results[file_str] = {"ok": ok, "log": log, "diagnostics": diagnostics}
         compiling_now.discard(file_str)
         if file_str in dirty_during_compile:
             await compile_queue.put(file_str)

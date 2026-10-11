@@ -68,9 +68,9 @@ class WorkspaceState:
             self.editing_file = self.tex_file
         self.open_tabs = [p for p in data.get("open_tabs", []) if (WORKSPACE_ROOT / p).is_file()]
 
-    def select(self, relative):
+    def select(self, relative, as_root=True):
         self.editing_file = relative
-        if relative.suffix == ".tex":
+        if relative.suffix == ".tex" and as_root:
             self.tex_file = relative
             self.pdf_file = relative.with_suffix(".pdf")
         self.save()

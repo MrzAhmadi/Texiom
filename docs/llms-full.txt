@@ -1,6 +1,6 @@
 # Texiom - full documentation
 
-> Generated from README.md and `texiom --help` (version 0.0.63). See llms.txt for the short index.
+> Generated from README.md and `texiom --help` (version 0.0.64). See llms.txt for the short index.
 
 
 # Texiom
@@ -17,7 +17,7 @@ installation required on your machine.
 
 - **No local LaTeX install** - a full `texlive-full` + `latexmk` + `biber` image does the work.
 - **Three engines** - `pdflatex`, `xelatex` and `lualatex` (for `fontspec` and custom fonts).
-- **Live browser editor** - `texiom --edit` gives you source and PDF side by side, with auto-recompile, SyncTeX jump navigation and dark mode.
+- **Live browser editor** - `texiom --edit` gives you source and PDF side by side, with auto-recompile, clickable build errors, SyncTeX jump navigation and dark mode.
 - **Watch mode** - `texiom --watch` rebuilds on every save.
 - **Clean output** - `--pdf-only` leaves just the PDF.
 - **Packages for Linux** - `.deb`, `.rpm` and a generic tarball.
@@ -161,6 +161,13 @@ Ctrl+C in the terminal stops the session; the tab picks back up on its
 own once you run `--edit` again. Run `texiom --kill-edit` if you need
 to stop a session without a terminal open (e.g. it's stuck or was
 disowned).
+
+When a build fails, the right pane lists each error (and warnings that carry
+a line number) with the offending source line. Click one to jump straight to
+that line - even inside an `\input`/`\include`d file, which opens in a tab
+without changing which file gets compiled - and the lines are highlighted in
+the editor. After a successful build with warnings, click the status text in
+the toolbar to see them; the full log stays available under "Full log".
 
 It's a small local web server (source and PDF only ever touch
 `127.0.0.1`), not a general-purpose editor - no autocomplete, snippets, or

@@ -67,7 +67,7 @@ def get_tree():
 
 
 @router.post("/select")
-async def select_file(request: Request):
+async def select_file(request: Request, keep_root: bool = False):
     resolved = resolve_in_workspace((await request.body()).decode().strip())
     if resolved is None:
         return JSONResponse({"ok": False}, status_code=400)
@@ -75,13 +75,16 @@ async def select_file(request: Request):
     if relative.suffix not in (".tex", ".bib") or not full_path.is_file():
         return JSONResponse({"ok": False}, status_code=400)
 
-    workspace.select(relative)
+    # keep_root: open an included file for editing without making it the file that gets compiled
+    keep_root = keep_root and workspace.tex_file is not None
+    workspace.select(relative, as_root=not keep_root)
 
-    if relative.suffix != ".tex":
+    if relative.suffix != ".tex" or keep_root:
         return JSONResponse({
             "ok": True,
             "file": str(workspace.editing_file),
             "is_tex": False,
+            "keep_root": keep_root,
             "compile_state": "idle",
         })
 

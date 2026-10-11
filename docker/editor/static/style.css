@@ -476,16 +476,61 @@ body {
   inset: 0;
   z-index: 5;
   margin: 0;
-  padding: 20px;
+  padding: 0 0 20px;
   overflow: auto;
   background: var(--bg);
-  color: #e05555;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.diag-header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--bg);
+  border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+  font-weight: 600;
+}
+.diag-row {
+  display: flex;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.15);
+}
+.diag-clickable { cursor: pointer; }
+.diag-clickable:hover { background: rgba(128, 128, 128, 0.12); }
+.diag-icon { flex: none; width: 16px; text-align: center; }
+.diag-error .diag-icon { color: #e05555; }
+.diag-warning .diag-icon { color: #d9a23a; }
+.diag-body { min-width: 0; }
+.diag-message { word-break: break-word; }
+.diag-where { font-size: 12px; opacity: 0.65; }
+.diag-context {
+  display: block;
+  margin-top: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: rgba(128, 128, 128, 0.14);
   font-family: "SFMono-Regular", Consolas, Menlo, monospace;
   font-size: 12px;
-  line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
 }
+.diag-log { padding: 10px 16px; }
+.diag-log summary { cursor: pointer; opacity: 0.75; }
+.diag-log pre {
+  margin: 8px 0 0;
+  color: #e05555;
+  font-family: "SFMono-Regular", Consolas, Menlo, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.diag-line-error { background: rgba(224, 85, 85, 0.22); }
+.diag-line-warning { background: rgba(217, 162, 58, 0.18); }
+#status { cursor: default; }
 #errorPanel.visible { display: block; }
 #pdf-pane:has(#errorPanel.visible) #pdfScroll { pointer-events: none; }
 
