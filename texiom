@@ -9,7 +9,7 @@ FORCE_REBUILD=0
 NO_PULL=0
 REGISTRY_IMAGE="ghcr.io/mrzahmadi/texiom:latest"
 PDF_ONLY=0
-ENGINE="pdflatex"
+ENGINE=""
 WATCH=0
 EDIT_MODE=0
 EDIT_PORT=8765
@@ -57,8 +57,43 @@ Options:
   -k, --kill-edit     Stop any running --edit session (frees its port) and exit
   -v, --version       Show the installed version
   -h, --help          Show this help message
+
+A texiom.toml next to the .tex file can set file, engine, pdf_only and watch;
+command-line flags override it.
 USAGE
     exit 0
+}
+
+# Per-project settings: an optional texiom.toml next to the .tex file. Only a
+# flat subset of TOML is read (key = "string" / true / false, # comments);
+# command-line flags always win over the file.
+load_config() {
+    local conf="$TEX_DIR/texiom.toml" line key val
+    [[ -f "$conf" ]] || return 0
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        line="${line%%#*}"
+        [[ "$line" == *=* ]] || continue
+        key="${line%%=*}"; val="${line#*=}"
+        key="$(echo "$key" | tr -d '[:space:]')"
+        val="$(echo "$val" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"\(.*\)"$/\1/')"
+        case "$key" in
+            file)     [[ -n "$TEX_FILE" ]] || TEX_FILE="$val" ;;
+            engine)   [[ -n "$ENGINE" ]] || ENGINE="$val" ;;
+            pdf_only) [[ "$val" != true ]] || PDF_ONLY=1 ;;
+            watch)    [[ "$val" != true ]] || WATCH=1 ;;
+            *) echo "Warning: unknown key '$key' in $conf" >&2 ;;
+        esac
+    done < "$conf"
+}
+
+set_engine() {
+    ENGINE="${ENGINE:-pdflatex}"
+    case "$ENGINE" in
+        pdflatex) LATEXMK_ENGINE="-pdf" ;;
+        xelatex)  LATEXMK_ENGINE="-xelatex" ;;
+        lualatex) LATEXMK_ENGINE="-lualatex" ;;
+        *) echo "Error: unknown engine '$ENGINE' (use pdflatex, xelatex or lualatex)." >&2; exit 1 ;;
+    esac
 }
 
 while [[ $# -gt 0 ]]; do
@@ -78,13 +113,6 @@ while [[ $# -gt 0 ]]; do
         *) echo "Unknown option: $1" >&2; usage ;;
     esac
 done
-
-case "$ENGINE" in
-    pdflatex) LATEXMK_ENGINE="-pdf" ;;
-    xelatex)  LATEXMK_ENGINE="-xelatex" ;;
-    lualatex) LATEXMK_ENGINE="-lualatex" ;;
-    *) echo "Error: unknown engine '$ENGINE' (use pdflatex, xelatex or lualatex)." >&2; exit 1 ;;
-esac
 
 if [[ "$KILL_EDIT" -eq 1 ]]; then
     CONTAINERS="$(docker ps --filter "publish=$EDIT_PORT" --format '{{.ID}} {{.Names}} {{.Image}}')"
@@ -196,6 +224,8 @@ if [[ ! -d "$TEX_DIR" ]]; then
 fi
 TEX_DIR="$(cd "$TEX_DIR" && pwd)"
 cd "$TEX_DIR"
+load_config
+set_engine
 
 if [[ -z "$TEX_FILE" ]]; then
     mapfile -t TEX_CANDIDATES < <(find "$TEX_DIR" -maxdepth 1 -name '*.tex' | sort)

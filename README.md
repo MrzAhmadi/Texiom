@@ -226,6 +226,20 @@ compilation is fast. Upgrading `texiom` to a new version automatically
 rebuilds the image once if that version needs a different one - no manual
 `--rebuild` required.
 
+### Project config (`texiom.toml`)
+
+Put a `texiom.toml` next to your `.tex` file to save its settings, so a plain
+`texiom -d .` is enough:
+
+```toml
+file = "main.tex"     # main file (skips the prompt)
+engine = "xelatex"    # pdflatex (default), xelatex or lualatex
+pdf_only = true       # remove auxiliary files after a successful build
+watch = false         # rebuild on every change
+```
+
+All keys are optional. Command-line flags always override the file.
+
 ## Using as a VS Code Dev Container
 
 Open this folder (or any project that references this `.devcontainer/`) in
