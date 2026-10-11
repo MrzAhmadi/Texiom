@@ -288,14 +288,41 @@ builds once one exists.
 
 ### Inputs
 
-| Input               | Description                                                    | Default                                        |
-|---------------------|------------------------------------------------------------------|-------------------------------------------------|
-| `root_file`         | Path to the main `.tex` file, relative to `working_directory`    | *(required)*                                     |
-| `working_directory` | Directory containing the `.tex` sources                          | `.`                                              |
-| `args`              | Arguments passed to `latexmk`                                    | `-pdf -interaction=nonstopmode -halt-on-error`   |
+| Input               | Description                                                              | Default                          |
+|---------------------|--------------------------------------------------------------------------|----------------------------------|
+| `root_file`         | Main `.tex` file, relative to `working_directory` (or `file` in `texiom.toml`) | *(from `texiom.toml`)*      |
+| `working_directory` | Directory containing the `.tex` sources and an optional `texiom.toml`    | `.`                              |
+| `engine`            | `pdflatex`, `xelatex` or `lualatex`                                      | `pdflatex` (or `texiom.toml`)    |
+| `shell_escape`      | Pass `-shell-escape` to `latexmk` (needed by `minted`)                   | `false`                          |
+| `apt`               | Extra apt packages to install before building (comma or space separated) | *(none)*                         |
+| `pip`               | Extra pip packages to install before building                            | *(none)*                         |
+| `args`              | Extra arguments appended to the `latexmk` command                        | *(none)*                         |
+| `upload_artifact`   | Upload the PDF as a workflow artifact                                    | `false`                          |
+| `artifact_name`     | Name of the uploaded artifact                                            | `pdf`                            |
+| `image`             | Texiom image to run; pin a version tag for reproducible builds           | `ghcr.io/mrzahmadi/texiom:latest` |
 
-The compiled PDF is left next to the source file for a later step (e.g.
-`actions/upload-artifact`, or attaching it to a release) to pick up.
+Inputs take precedence over `texiom.toml` (`apt` and `pip` lists are
+combined), so a repo that already has a `texiom.toml` needs no inputs at all
+beyond `uses:`.
+
+**Output:** `pdf_path` - the compiled PDF, relative to the workspace root.
+
+```yaml
+- uses: actions/checkout@v4
+- uses: MrzAhmadi/Texiom@main
+  id: texiom
+  with:
+    root_file: paper.tex
+    engine: xelatex
+    upload_artifact: true
+- run: echo "Built ${{ steps.texiom.outputs.pdf_path }}"
+```
+
+> **Upgrading:** `args` used to replace the default `latexmk` arguments; it now
+> only appends extra ones (use `engine` instead of passing `-xelatex`).
+
+The compiled PDF is also left next to the source file for a later step (e.g.
+attaching it to a release) to pick up.
 
 ### Attaching the PDF to a GitHub Release on tag
 
@@ -313,12 +340,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: MrzAhmadi/Texiom@main
+        id: texiom
         with:
           root_file: paper.tex
 
       - uses: softprops/action-gh-release@v2
         with:
-          files: paper.pdf
+          files: ${{ steps.texiom.outputs.pdf_path }}
 ```
 
 ## Keywords

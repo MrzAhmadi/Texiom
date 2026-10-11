@@ -23,6 +23,7 @@ RUN pip3 install --break-system-packages --no-cache-dir fastapi "uvicorn[standar
 
 COPY action-entrypoint.sh /usr/local/bin/texiom-action-entrypoint
 RUN chmod +x /usr/local/bin/texiom-action-entrypoint
+COPY config.sh /usr/local/lib/texiom-config.sh
 
 COPY editor/ /opt/texiom-editor/
 

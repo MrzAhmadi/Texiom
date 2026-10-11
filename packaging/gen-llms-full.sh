@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Regenerates docs/llms-full.txt (README + CLI help in one file). Run after changing README or options.
+# Regenerates docs/llms-full.txt (README + CLI help in one file) and syncs the version in docs/llms.txt. Run after changing README or options.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+sed -i "s/^Current version: .*\./Current version: $(cat VERSION)./" docs/llms.txt
 {
     echo "# Texiom - full documentation"
     echo

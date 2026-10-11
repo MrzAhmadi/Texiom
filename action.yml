@@ -7,22 +7,78 @@ branding:
 
 inputs:
   root_file:
-    description: 'Path to the main .tex file, relative to working_directory'
-    required: true
+    description: 'Path to the main .tex file, relative to working_directory (or set "file" in texiom.toml)'
+    required: false
+    default: ''
   working_directory:
-    description: 'Directory containing the .tex sources'
+    description: 'Directory containing the .tex sources (and an optional texiom.toml)'
     required: false
     default: '.'
-  args:
-    description: 'Arguments passed to latexmk'
+  engine:
+    description: 'LaTeX engine: pdflatex, xelatex or lualatex (default pdflatex, or texiom.toml)'
     required: false
-    default: '-pdf -interaction=nonstopmode -halt-on-error'
+    default: ''
+  shell_escape:
+    description: 'Pass -shell-escape to latexmk (needed by minted); "true" or "false"'
+    required: false
+    default: 'false'
+  apt:
+    description: 'Extra apt packages to install before building (comma or space separated)'
+    required: false
+    default: ''
+  pip:
+    description: 'Extra pip packages to install before building (comma or space separated)'
+    required: false
+    default: ''
+  args:
+    description: 'Extra arguments appended to the latexmk command'
+    required: false
+    default: ''
+  upload_artifact:
+    description: 'Upload the PDF as a workflow artifact; "true" or "false"'
+    required: false
+    default: 'false'
+  artifact_name:
+    description: 'Name of the uploaded artifact'
+    required: false
+    default: 'pdf'
+  image:
+    description: 'Texiom Docker image to run (pin a version tag for reproducible builds)'
+    required: false
+    default: 'ghcr.io/mrzahmadi/texiom:latest'
+
+outputs:
+  pdf_path:
+    description: 'Path of the compiled PDF, relative to the workspace root'
+    value: ${{ steps.build.outputs.pdf_path }}
 
 runs:
-  using: 'docker'
-  image: 'docker://ghcr.io/mrzahmadi/texiom:latest'
-  entrypoint: '/usr/local/bin/texiom-action-entrypoint'
-  args:
-    - ${{ inputs.root_file }}
-    - ${{ inputs.working_directory }}
-    - ${{ inputs.args }}
+  using: 'composite'
+  steps:
+    - name: Compile with Texiom
+      id: build
+      shell: bash
+      env:
+        INPUT_ROOT_FILE: ${{ inputs.root_file }}
+        INPUT_WORKING_DIRECTORY: ${{ inputs.working_directory }}
+        INPUT_ENGINE: ${{ inputs.engine }}
+        INPUT_SHELL_ESCAPE: ${{ inputs.shell_escape }}
+        INPUT_APT: ${{ inputs.apt }}
+        INPUT_PIP: ${{ inputs.pip }}
+        INPUT_ARGS: ${{ inputs.args }}
+        TEXIOM_IMAGE: ${{ inputs.image }}
+      run: |
+        docker run --rm \
+          -v "$GITHUB_WORKSPACE":/github/workspace -w /github/workspace \
+          -v "$GITHUB_OUTPUT":/tmp/github_output -e GITHUB_OUTPUT=/tmp/github_output \
+          -e INPUT_ROOT_FILE -e INPUT_WORKING_DIRECTORY -e INPUT_ENGINE \
+          -e INPUT_SHELL_ESCAPE -e INPUT_APT -e INPUT_PIP -e INPUT_ARGS \
+          --entrypoint /usr/local/bin/texiom-action-entrypoint \
+          "$TEXIOM_IMAGE"
+
+    - name: Upload PDF artifact
+      if: ${{ inputs.upload_artifact == 'true' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact_name }}
+        path: ${{ steps.build.outputs.pdf_path }}
