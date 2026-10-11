@@ -1,16 +1,44 @@
-<img src="assets/logo.png" alt="Texiom logo" width="160">
+<p align="center">
+  <img src="assets/logo.png" alt="Texiom logo" width="160">
+</p>
 
 # Texiom
 
-[![Version](https://img.shields.io/github/v/release/MrzAhmadi/Texiom)](https://github.com/MrzAhmadi/Texiom/releases)
+**Texiom** is a Docker-based LaTeX compiler and live browser editor. Build any
+`.tex` file into a PDF with `pdflatex`, `xelatex` or `lualatex` - no TeX Live
+installation required on your machine.
 
-Compile any `.tex` file into a PDF using a containerized, full TeX Live
-distribution — no LaTeX installation required on the host machine.
+[![Release](https://img.shields.io/github/v/release/MrzAhmadi/Texiom)](https://github.com/MrzAhmadi/Texiom/releases)
+[![License: MIT](https://img.shields.io/github/license/MrzAhmadi/Texiom)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/MrzAhmadi/Texiom?style=flat)](https://github.com/MrzAhmadi/Texiom/stargazers)
+![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20WSL2-blue)
+![Docker](https://img.shields.io/badge/requires-Docker-2496ED?logo=docker&logoColor=white)
 
-## Why
+![Texiom live LaTeX editor in the browser](assets/sc1.png)
+
+## Features
+
+- **No local LaTeX install** - a full `texlive-full` + `latexmk` + `biber` image does the work.
+- **Three engines** - `pdflatex`, `xelatex` and `lualatex` (for `fontspec` and custom fonts).
+- **Live browser editor** - `texiom --edit` gives you source and PDF side by side, with auto-recompile, SyncTeX jump navigation and dark mode.
+- **Watch mode** - `texiom --watch` rebuilds on every save.
+- **Clean output** - `--pdf-only` leaves just the PDF.
+- **Packages for Linux** - `.deb`, `.rpm` and a generic tarball.
+- **GitHub Action** - build LaTeX PDFs in CI with `MrzAhmadi/Texiom@main`.
+- **VS Code Dev Container** - LaTeX Workshop preconfigured.
+
+## Quick start
+
+```bash
+sudo dpkg -i texiom_*.deb      # install from the Releases page (see below for rpm/tarball)
+texiom --dir ~/my-paper --file paper.tex
+texiom --edit                  # or open the live browser editor
+```
+
+## Why Texiom
 
 Installing a full TeX Live distribution locally is slow, large, and easy to
-get out of sync across machines. This project packages `texlive-full`,
+get out of sync across machines. Texiom packages `texlive-full`,
 `latexmk`, and `biber` into a single Docker image (also usable as a VS Code
 Dev Container) and provides a small `texiom` command that compiles any
 `.tex` file on your host by mounting its directory into the container.
@@ -249,6 +277,12 @@ jobs:
         with:
           files: paper.pdf
 ```
+
+## Keywords
+
+LaTeX, Docker, TeX Live, pdflatex, xelatex, lualatex, latexmk, biber, online
+LaTeX editor, Overleaf alternative, offline LaTeX editor, PDF compiler, GitHub
+Action, Dev Container.
 
 ## License
 
