@@ -17,6 +17,8 @@ EDIT_VOLUME="texiom-workspace"
 KILL_EDIT=0
 TEX_DIR=""
 TEX_FILE=""
+APT_PKGS=""
+PIP_PKGS=""
 
 bind 'set show-all-if-ambiguous on' 2>/dev/null || true
 bind 'set page-completions off' 2>/dev/null || true
@@ -48,6 +50,8 @@ Options:
       --no-pull       Never download the prebuilt image from GHCR; build locally
   -E, --engine ENGINE LaTeX engine: pdflatex (default), xelatex or lualatex
                        (not used with --edit)
+      --apt PKGS      Install extra apt packages (comma-separated, repeatable)
+      --pip PKGS      Install extra pip packages (comma-separated, repeatable)
   -p, --pdf-only      Remove latexmk's auxiliary files after a successful
                        build, leaving only the .pdf next to the .tex source
   -w, --watch         Rebuild automatically whenever the .tex file (or
@@ -58,15 +62,42 @@ Options:
   -v, --version       Show the installed version
   -h, --help          Show this help message
 
-A texiom.toml next to the .tex file can set file, engine, pdf_only and watch;
+A texiom.toml next to the .tex file can set file, engine, pdf_only, watch,
+apt and pip (lists);
 command-line flags override it.
 USAGE
     exit 0
 }
 
+# Extra packages (--apt / --pip / texiom.toml): a tiny layer on top of the
+# base image, tagged by the base hash + package lists so it is built once.
+build_extras_image() {
+    local apt pip pkg spec
+    apt="$(echo $APT_PKGS)"; pip="$(echo $PIP_PKGS)"
+    [[ -n "$apt$pip" ]] || return 0
+    for pkg in $apt $pip; do
+        if [[ ! "$pkg" =~ ^[A-Za-z0-9][A-Za-z0-9._+:=~-]*$ ]]; then
+            echo "Error: invalid package name '$pkg'." >&2
+            exit 1
+        fi
+    done
+    spec="$(printf '%s|%s|%s' "$(docker image inspect --format '{{.Id}}' "$IMAGE_TAG")" "$apt" "$pip" | sha256sum | cut -c1-12)"
+    local extras_tag="${IMAGE_TAG%%:*}-extras:$spec"
+    if ! docker image inspect "$extras_tag" >/dev/null 2>&1; then
+        echo "Building image with extra packages (apt: ${apt:-none}; pip: ${pip:-none}) ..."
+        {
+            echo "FROM $IMAGE_TAG"
+            [[ -z "$apt" ]] || echo "RUN apt-get update && apt-get install -y $apt && rm -rf /var/lib/apt/lists/*"
+            [[ -z "$pip" ]] || echo "RUN pip3 install --break-system-packages --no-cache-dir $pip"
+        } | docker build -t "$extras_tag" -
+    fi
+    IMAGE_TAG="$extras_tag"
+}
+
 # Per-project settings: an optional texiom.toml next to the .tex file. Only a
-# flat subset of TOML is read (key = "string" / true / false, # comments);
-# command-line flags always win over the file.
+# flat subset of TOML is read (key = "string" / true / false / ["a", "b"],
+# # comments);
+# command-line flags win over the file (apt/pip lists are combined).
 load_config() {
     local conf="$TEX_DIR/texiom.toml" line key val
     [[ -f "$conf" ]] || return 0
@@ -75,12 +106,20 @@ load_config() {
         [[ "$line" == *=* ]] || continue
         key="${line%%=*}"; val="${line#*=}"
         key="$(echo "$key" | tr -d '[:space:]')"
+        if [[ "$val" =~ ^[[:space:]]*\[ ]]; then
+            while [[ "$val" != *']'* ]] && IFS= read -r line; do
+                val+=" ${line%%#*}"
+            done
+            val="$(echo "$val" | tr -d '[]"'"'"'' | tr ',' ' ')"
+        fi
         val="$(echo "$val" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"\(.*\)"$/\1/')"
         case "$key" in
             file)     [[ -n "$TEX_FILE" ]] || TEX_FILE="$val" ;;
             engine)   [[ -n "$ENGINE" ]] || ENGINE="$val" ;;
             pdf_only) [[ "$val" != true ]] || PDF_ONLY=1 ;;
             watch)    [[ "$val" != true ]] || WATCH=1 ;;
+            apt)      APT_PKGS+=" $val" ;;
+            pip)      PIP_PKGS+=" $val" ;;
             *) echo "Warning: unknown key '$key' in $conf" >&2 ;;
         esac
     done < "$conf"
@@ -104,6 +143,8 @@ while [[ $# -gt 0 ]]; do
         -r|--rebuild)  FORCE_REBUILD=1; shift ;;
         --no-pull)     NO_PULL=1; shift ;;
         -E|--engine)   ENGINE="$2"; shift 2 ;;
+        --apt)         APT_PKGS+=" ${2//,/ }"; shift 2 ;;
+        --pip)         PIP_PKGS+=" ${2//,/ }"; shift 2 ;;
         -p|--pdf-only) PDF_ONLY=1; shift ;;
         -w|--watch)    WATCH=1; shift ;;
         -e|--edit)     EDIT_MODE=1; shift ;;
@@ -226,6 +267,7 @@ TEX_DIR="$(cd "$TEX_DIR" && pwd)"
 cd "$TEX_DIR"
 load_config
 set_engine
+build_extras_image
 
 if [[ -z "$TEX_FILE" ]]; then
     mapfile -t TEX_CANDIDATES < <(find "$TEX_DIR" -maxdepth 1 -name '*.tex' | sort)

@@ -209,6 +209,8 @@ Ctrl+S needed.
 | `-t, --tag TAG`   | Docker image tag to use/build (default: `texiom`)         |
 | `-r, --rebuild`   | Force a fresh image build even if one already exists        |
 | `--no-pull`       | Never download the prebuilt image from GHCR; always build locally |
+| `--apt PKGS`      | Install extra apt packages (comma-separated, repeatable) |
+| `--pip PKGS`      | Install extra pip packages (comma-separated, repeatable) |
 | `-E, --engine ENGINE` | LaTeX engine: `pdflatex` (default), `xelatex` or `lualatex`; not used with `--edit` |
 | `-p, --pdf-only`  | Remove `latexmk`'s auxiliary files after a successful build, leaving only the `.pdf` |
 | `-w, --watch`     | Rebuild automatically whenever the `.tex` file changes, until Ctrl+C |
@@ -236,9 +238,25 @@ file = "main.tex"     # main file (skips the prompt)
 engine = "xelatex"    # pdflatex (default), xelatex or lualatex
 pdf_only = true       # remove auxiliary files after a successful build
 watch = false         # rebuild on every change
+apt = ["inkscape", "poppler-utils"]   # extra system packages
+pip = ["pygments"]                    # extra Python packages
 ```
 
-All keys are optional. Command-line flags always override the file.
+All keys are optional. Command-line flags override the file, except `apt` and
+`pip`, which are combined.
+
+### Extra packages
+
+Need a tool the base image lacks? List it under `apt` / `pip` in
+`texiom.toml`, or pass `--apt` / `--pip` (comma-separated, repeatable):
+
+```bash
+texiom -d . --apt inkscape,ghostscript --pip pygments
+```
+
+Texiom adds a small layer on top of the base image and caches it, so the
+install runs once per package set (and again only when the base image changes).
+Extra packages apply to compiling, not to `--edit`.
 
 ## Using as a VS Code Dev Container
 

@@ -2,7 +2,7 @@ _texiom_completions() {
     local cur prev
     _init_completion || return
 
-    local long_opts="--dir --file --tag --rebuild --no-pull --engine --pdf-only --watch --edit --version --help"
+    local long_opts="--dir --file --tag --rebuild --no-pull --apt --pip --engine --pdf-only --watch --edit --version --help"
     local short_opts="-d -f -t -r -E -p -w -e -v -h"
 
     case "$prev" in
