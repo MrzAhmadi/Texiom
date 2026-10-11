@@ -1,0 +1,31 @@
+# Texiom
+
+> Texiom is a Docker-based LaTeX compiler and live browser editor for Linux and WSL2. It builds any .tex file into a PDF with pdflatex, xelatex or lualatex (via latexmk) without installing TeX Live on the host; the only requirement is Docker and Bash.
+
+Current version: 0.0.62. The `texiom` command is a single Bash script. The first run downloads a prebuilt image from ghcr.io/mrzahmadi/texiom (falling back to a local build), then reuses it.
+
+Key features:
+- Compile: `texiom -d DIR -f FILE.tex`, with `--engine`, `--watch`, `--pdf-only`, `--shell-escape`
+- Live browser editor: `texiom --edit` (source and PDF side by side, auto-recompile, SyncTeX navigation, project stored in a persistent Docker volume)
+- Per-project config: `texiom.toml` next to the .tex file (file, engine, pdf_only, watch, shell_escape, apt, pip)
+- Extra packages: `--apt` / `--pip` (or the same keys in texiom.toml) install into a small cached layer on top of the base image
+- Prebuilt image from GHCR; `--no-pull` forces a local build
+- GitHub Action, VS Code Dev Container, .deb / .rpm / tar.gz packages and an install script
+
+## Docs
+
+- [README](https://raw.githubusercontent.com/MrzAhmadi/Texiom/main/README.md): Installation, usage, all options, texiom.toml, extra packages, live editor, GitHub Action, Dev Container
+- [Full documentation](https://mrzahmadi.github.io/Texiom/llms-full.txt): README and CLI help in a single file
+- [Website](https://mrzahmadi.github.io/Texiom/): Project landing page
+
+## Source
+
+- [texiom script](https://raw.githubusercontent.com/MrzAhmadi/Texiom/main/texiom): The whole CLI (argument parsing, image handling, config, compilation)
+- [Dockerfile](https://raw.githubusercontent.com/MrzAhmadi/Texiom/main/docker/Dockerfile): Base image (Ubuntu 24.04, texlive-full, latexmk, biber, Python)
+- [action.yml](https://raw.githubusercontent.com/MrzAhmadi/Texiom/main/action.yml): GitHub Action definition and inputs
+- [VERSION](https://raw.githubusercontent.com/MrzAhmadi/Texiom/main/VERSION): Current version number
+
+## Optional
+
+- [Releases](https://github.com/MrzAhmadi/Texiom/releases): Packages (.deb, .rpm, .tar.gz) and changelog
+- [License](https://raw.githubusercontent.com/MrzAhmadi/Texiom/main/LICENSE): MIT
