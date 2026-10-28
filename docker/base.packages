@@ -12,5 +12,3 @@ latexmk
 biber
 make
 procps
-python3
-python3-pip

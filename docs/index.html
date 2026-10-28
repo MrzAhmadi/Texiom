@@ -3,20 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Texiom – Docker LaTeX compiler and live browser editor</title>
-<meta name="description" content="Texiom compiles LaTeX to PDF with pdflatex, xelatex or lualatex inside Docker. Small first download, optional packs, a live browser editor. No TeX Live install needed.">
+<title>Texiom – Docker LaTeX compiler</title>
+<meta name="description" content="Texiom compiles LaTeX to PDF with pdflatex, xelatex or lualatex inside Docker. Small first download, optional packs, watch mode. No TeX Live install needed.">
 <link rel="canonical" href="https://mrzahmadi.github.io/Texiom/">
 <link rel="icon" href="logo.png">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Texiom – Docker LaTeX compiler and live browser editor">
-<meta property="og:description" content="Build LaTeX to PDF without installing TeX Live. pdflatex, xelatex, lualatex, live editor, GitHub Action.">
+<meta property="og:title" content="Texiom – Docker LaTeX compiler">
+<meta property="og:description" content="Build LaTeX to PDF without installing TeX Live. pdflatex, xelatex, lualatex, watch mode, GitHub Action.">
 <meta property="og:url" content="https://mrzahmadi.github.io/Texiom/">
-<meta property="og:image" content="https://mrzahmadi.github.io/Texiom/sc1.png">
-<meta name="twitter:card" content="summary_large_image">
+<meta property="og:image" content="https://mrzahmadi.github.io/Texiom/logo.png">
+<meta name="twitter:card" content="summary">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"SoftwareApplication","name":"Texiom",
 "applicationCategory":"DeveloperApplication","operatingSystem":"Linux, WSL2",
-"description":"Docker-based LaTeX compiler and live browser editor.",
+"description":"Docker-based LaTeX compiler.",
 "url":"https://mrzahmadi.github.io/Texiom/",
 "codeRepository":"https://github.com/MrzAhmadi/Texiom",
 "license":"https://opensource.org/licenses/MIT",
@@ -55,7 +55,7 @@ footer{margin:56px 0 32px;color:var(--muted);text-align:center;font-size:.9rem}
 <header class="hero">
   <img class="logo" src="logo.png" alt="Texiom logo">
   <h1>Texiom</h1>
-  <p class="tag">A Docker-based LaTeX compiler and live browser editor. Build <code>.tex</code> to PDF with pdflatex, xelatex or lualatex, with no TeX Live installation on your machine.</p>
+  <p class="tag">A Docker-based LaTeX compiler. Build <code>.tex</code> to PDF with pdflatex, xelatex or lualatex, with no TeX Live installation on your machine.</p>
   <div class="btns">
     <a class="p" href="https://github.com/MrzAhmadi/Texiom/releases/latest">Download</a>
     <a class="s" href="https://github.com/MrzAhmadi/Texiom">View on GitHub</a>
@@ -63,16 +63,13 @@ footer{margin:56px 0 32px;color:var(--muted);text-align:center;font-size:.9rem}
 </header>
 
 <main>
-<img class="shot" src="sc1.png" alt="Texiom live LaTeX editor in the browser, source on the left and PDF on the right" width="1920" height="989">
-
 <h2>Features</h2>
 <div class="grid">
   <div class="card"><h3>No local LaTeX install</h3><p>A Docker image with TeX Live, latexmk and biber does the building.</p></div>
-  <div class="card"><h3>Small first download</h3><p>A base image of roughly 350 MB; add science, templates, fonts or languages with one command, once.</p></div>
+  <div class="card"><h3>Small first download</h3><p>A base image of roughly 330 MB; add science, templates, fonts or languages with one command, once.</p></div>
   <div class="card"><h3>Clear errors</h3><p>A missing package is named, together with the pack that provides it.</p></div>
   <div class="card"><h3>Per-project config</h3><p>A <code>texiom.toml</code> next to your <code>.tex</code> file stores the engine, main file and extra packages.</p></div>
   <div class="card"><h3>Three engines</h3><p>pdflatex, xelatex and lualatex, including fontspec and custom fonts.</p></div>
-  <div class="card"><h3>Live browser editor</h3><p>Source and PDF side by side, auto-recompile, clickable build errors, SyncTeX jumps and dark mode.</p></div>
   <div class="card"><h3>Watch mode</h3><p>Rebuild on every save while you use your own editor.</p></div>
   <div class="card"><h3>GitHub Action</h3><p>Build your LaTeX PDF in CI with one step.</p></div>
   <div class="card"><h3>Dev Container</h3><p>VS Code with LaTeX Workshop preconfigured.</p></div>
@@ -97,11 +94,8 @@ texiom --dir ~/my-paper --file paper.tex
 # use XeLaTeX or LuaLaTeX
 texiom --dir ~/my-paper --file paper.tex --engine xelatex
 
-# rebuild on every save
-texiom --dir ~/my-paper --file paper.tex --watch
-
-# live editor in the browser
-texiom --edit</code></pre>
+# rebuild on every save, while you write in any editor
+texiom --dir ~/my-paper --file paper.tex --watch</code></pre>
 <p>Settings you repeat can live in a <code>texiom.toml</code> next to the file, so <code>texiom -d .</code> is enough:</p>
 <pre><code>file = "main.tex"
 engine = "xelatex"
@@ -135,8 +129,8 @@ Install 'science' now and build again? [Y/n]</code></pre>
 <p>It reads <code>texiom.toml</code> too. For a much smaller pull, run the slim image and add what you need: <code>image: ghcr.io/mrzahmadi/texiom:slim</code> with <code>apt: texlive-science</code>.</p>
 
 <h2>FAQ</h2>
-<details><summary>What is Texiom?</summary><p>Texiom is an open source command line tool that compiles LaTeX documents inside a Docker container and offers a local live editor in your browser.</p></details>
-<details><summary>Is it an alternative to Overleaf?</summary><p>For local, offline work, yes. It runs on your machine, your files stay on it, and the editor only listens on 127.0.0.1. It has no real-time collaboration and is not a full IDE.</p></details>
+<details><summary>What is Texiom?</summary><p>Texiom is an open source command line tool that compiles LaTeX documents inside a Docker container, so you do not install TeX Live yourself. Write in any editor and let <code>--watch</code> rebuild on save.</p></details>
+<details><summary>Is it an alternative to Overleaf?</summary><p>For building locally and offline, yes: it runs on your machine and your files stay on it. Texiom is a build tool, not an editor and not a collaboration service, so you write in the editor you already use.</p></details>
 <details><summary>How big is the first download?</summary><p>Roughly 350 MB for the base image. Extra packs are downloaded only when you install them with <code>texiom add</code>.</p></details>
 <details><summary>My document needs a package that is not in the base image.</summary><p>The build says which package is missing and which pack provides it. Install it once with <code>texiom add &lt;pack&gt;</code>; <code>texiom add full</code> installs everything.</p></details>
 <details><summary>Does it work on Windows or macOS?</summary><p>Windows works through WSL2. Packages target Linux; the script itself needs Bash and Docker.</p></details>

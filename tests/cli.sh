@@ -110,6 +110,17 @@ tex -d "$PROJECT" -f a.tex --apt inkscape
 check "project extras are layered on the packs image" calls_have "FROM texiom-packs:installed"
 check "and the build runs in the extras image" calls_have "run-image texiom-extras:"
 
+# --pip pulls python3-pip into the extras layer on demand (it is not in the base image)
+new_env; export FAKE_PULL_HASH="$HASH" FAKE_REMOTE_HASH="$HASH"
+tex -d "$PROJECT" -f a.tex --pip pygments
+check "--pip installs python3-pip in the extras layer" calls_have "python3-pip"
+check "--pip installs the requested package" calls_have "pip3 install --break-system-packages --no-cache-dir pygments"
+
+# the removed browser editor flags say so instead of failing obscurely
+tex --edit
+check "--edit explains the editor was removed" out_has "browser editor was removed"
+check "and fails" test "$RC" -ne 0
+
 # --- failure diagnosis ------------------------------------------------------------------------
 new_env; export FAKE_PULL_HASH="$HASH" FAKE_REMOTE_HASH="$HASH" FAKE_BUILD_STATUS=1
 printf "! LaTeX Error: File \`algorithm2e.sty' not found.\n" > "$T/out.log"; export FAKE_BUILD_OUTPUT="$T/out.log"

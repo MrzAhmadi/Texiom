@@ -19,10 +19,6 @@ PDF_ONLY=0
 ENGINE=""
 WATCH=0
 SHELL_ESCAPE=0
-EDIT_MODE=0
-EDIT_PORT=8765
-EDIT_VOLUME="texiom-workspace"
-KILL_EDIT=0
 TEX_DIR=""
 TEX_FILE=""
 APT_PKGS=""
@@ -46,23 +42,15 @@ Usage:
   texiom packs                        list optional packs; installed ones are marked [x]
   texiom add [PACK...]                install packs (pick from a list if none given)
   texiom remove [PACK...]             uninstall packs
-  texiom --edit                       open the browser editor - your
-                                       project lives entirely inside a
-                                       persistent Docker volume, managed
-                                       from the browser (create/upload/
-                                       rename/delete files and folders);
-                                       -d/-f are not used with --edit
 
 Options:
-  -d, --dir DIR       Directory containing the .tex file (not used with --edit)
-  -f, --file FILE     Name of the .tex file, extension optional (not used
-                       with --edit); auto-detected if the directory has
-                       exactly one .tex file
+  -d, --dir DIR       Directory containing the .tex file
+  -f, --file FILE     Name of the .tex file, extension optional;
+                       auto-detected if the directory has exactly one .tex file
   -t, --tag TAG       Docker image tag to use/build (default: texiom)
   -r, --rebuild       Force rebuild of the Docker image even if it exists
       --no-pull       Never download the prebuilt image from GHCR; build locally
   -E, --engine ENGINE LaTeX engine: pdflatex (default), xelatex or lualatex
-                       (not used with --edit)
       --apt PKGS      Install extra apt packages (comma-separated, repeatable)
       --pip PKGS      Install extra pip packages (comma-separated, repeatable)
       --shell-escape  Allow LaTeX to run external programs (needed by minted)
@@ -70,9 +58,6 @@ Options:
                        build, leaving only the .pdf next to the .tex source
   -w, --watch         Rebuild automatically whenever the .tex file (or
                        anything it includes) changes; Ctrl+C to stop
-  -e, --edit          Open the browser-based editor (source left, PDF right)
-                       for your persistent in-container project; Ctrl+C to stop
-  -k, --kill-edit     Stop any running --edit session (frees its port) and exit
   -v, --version       Show the installed version
   -h, --help          Show this help message
 
@@ -120,10 +105,11 @@ while [[ $# -gt 0 ]]; do
         --shell-escape) SHELL_ESCAPE=1; shift ;;
         -p|--pdf-only) PDF_ONLY=1; shift ;;
         -w|--watch)    WATCH=1; shift ;;
-        -e|--edit)     EDIT_MODE=1; shift ;;
-        -k|--kill-edit) KILL_EDIT=1; shift ;;
         -v|--version)  echo "texiom $VERSION"; exit 0 ;;
         -h|--help)     usage ;;
+        -e|--edit|-k|--kill-edit)
+            echo "The browser editor was removed. Use your own editor with: texiom --watch -d DIR -f FILE.tex" >&2
+            exit 1 ;;
         -*) echo "Unknown option: $1" >&2; usage ;;
         packs|add|remove)
             if [[ -z "$COMMAND" ]]; then COMMAND="$1"; else POSITIONAL+=("$1"); fi
@@ -137,19 +123,6 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ "$KILL_EDIT" -eq 1 ]]; then
-    CONTAINERS="$(docker ps --filter "publish=$EDIT_PORT" --format '{{.ID}} {{.Names}} {{.Image}}')"
-    if [[ -z "$CONTAINERS" ]]; then
-        echo "No session found on port $EDIT_PORT."
-        exit 0
-    fi
-    echo "Stopping session(s) on port $EDIT_PORT:"
-    echo "$CONTAINERS"
-    echo "$CONTAINERS" | cut -d' ' -f1 | xargs docker stop >/dev/null
-    echo "Done."
-    exit 0
-fi
-
 # Listing packs only reads files; it must not wait for an image.
 if [[ "$COMMAND" == packs ]]; then cmd_packs; exit 0; fi
 
@@ -162,24 +135,6 @@ case "$COMMAND" in
     add)    cmd_add ${POSITIONAL[@]+"${POSITIONAL[@]}"}; exit $? ;;
     remove) cmd_remove ${POSITIONAL[@]+"${POSITIONAL[@]}"}; exit $? ;;
 esac
-
-if [[ "$EDIT_MODE" -eq 1 ]]; then
-    docker volume create "$EDIT_VOLUME" >/dev/null
-    echo "Starting live editor (project: Docker volume '$EDIT_VOLUME') at http://127.0.0.1:$EDIT_PORT (Ctrl+C to stop) ..."
-    docker run --rm -p "127.0.0.1:$EDIT_PORT:8000" \
-        -v "$EDIT_VOLUME":/workspace -w /workspace \
-        -v "$DOCKER_DIR/editor":/opt/texiom-editor:ro \
-        "$RUN_IMAGE" python3 /opt/texiom-editor/server.py &
-    DOCKER_PID=$!
-    trap 'kill "$DOCKER_PID" 2>/dev/null || true' INT TERM
-    ( sleep 1
-      if kill -0 "$DOCKER_PID" 2>/dev/null; then
-          xdg-open "http://127.0.0.1:$EDIT_PORT" >/dev/null 2>&1 || open "http://127.0.0.1:$EDIT_PORT" >/dev/null 2>&1 || true
-      fi
-    ) &
-    wait "$DOCKER_PID"
-    exit $?
-fi
 
 if [[ -z "$TEX_DIR" ]]; then
     if [[ -z "$TEX_FILE" ]]; then

@@ -8,7 +8,7 @@
 # Hash of everything that goes into the image. Relative paths and a C-locale sort keep it
 # identical on every machine and in CI, so a prebuilt image can be matched without pulling it.
 docker_context_hash() {
-    (cd "$1" && find docker -type f -not -path 'docker/editor/*' -print0 | LC_ALL=C sort -z \
+    (cd "$1" && find docker -type f -print0 | LC_ALL=C sort -z \
         | xargs -0 sha256sum | sha256sum | cut -d' ' -f1)
 }
 
@@ -138,7 +138,8 @@ build_extras_image() {
         {
             echo "FROM $RUN_IMAGE"
             [[ -z "$apt" ]] || echo "RUN apt-get update && apt-get install -y $apt && rm -rf /var/lib/apt/lists/*"
-            [[ -z "$pip" ]] || echo "RUN pip3 install --break-system-packages --no-cache-dir $pip"
+            # pip is not part of the base image; it is installed only when a project asks for Python packages
+            [[ -z "$pip" ]] || echo "RUN apt-get update && apt-get install -y --no-install-recommends python3-pip && rm -rf /var/lib/apt/lists/* && pip3 install --break-system-packages --no-cache-dir $pip"
         } | docker build -t "$extras_tag" -
     fi
     RUN_IMAGE="$extras_tag"

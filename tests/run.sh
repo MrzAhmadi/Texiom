@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs every test; this is what CI runs. Needs only bash and python3 (shellcheck is used if present).
+# Runs every test; this is what CI runs. Needs only bash (shellcheck is used if present).
 set -u
 export PYTHONDONTWRITEBYTECODE=1
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -12,7 +12,6 @@ step "bash syntax" bash -c 'for f in "$@"; do bash -n "$f" || exit 1; done' _ "$
 if command -v shellcheck >/dev/null 2>&1; then
     step "shellcheck" shellcheck -S warning -x "${SCRIPTS[@]}"
 fi
-step "editor log parser" python3 -I tests/test_diagnostics.py
 step "pack catalogue" bash tests/catalogue.sh
 step "texiom.toml parser" bash tests/config.sh
 step "CLI (fake docker)" bash tests/cli.sh

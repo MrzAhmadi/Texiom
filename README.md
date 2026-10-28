@@ -4,7 +4,7 @@
 
 # Texiom
 
-**Texiom** is a Docker-based LaTeX compiler and live browser editor. Build any
+**Texiom** is a Docker-based LaTeX compiler. Build any
 `.tex` file into a PDF with `pdflatex`, `xelatex` or `lualatex` - no TeX Live
 installation required on your machine.
 
@@ -16,16 +16,13 @@ installation required on your machine.
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20WSL2-blue)
 ![Docker](https://img.shields.io/badge/requires-Docker-2496ED?logo=docker&logoColor=white)
 
-![Texiom live LaTeX editor in the browser](assets/sc1.png)
-
 ## Features
 
 - **No local LaTeX install** - a Docker image with TeX Live, `latexmk` and `biber` does the work.
-- **Small first download** - the base image is roughly 350 MB; add what you need with `texiom add` (science, publisher templates, fonts, languages, ...) and never download it twice.
+- **Small first download** - the base image is roughly 330 MB; add what you need with `texiom add` (science, publisher templates, fonts, languages, ...) and never download it twice.
 - **Clear errors** - when a build fails because a package or tool is not installed, Texiom says which one and which pack provides it.
 - **Three engines** - `pdflatex`, `xelatex` and `lualatex` (for `fontspec` and custom fonts).
-- **Live browser editor** - `texiom --edit` gives you source and PDF side by side, with auto-recompile, clickable build errors, SyncTeX jump navigation and dark mode.
-- **Watch mode** - `texiom --watch` rebuilds on every save.
+- **Watch mode** - `texiom --watch` rebuilds on every save, so you can write in any editor.
 - **Clean output** - `--pdf-only` leaves just the PDF.
 - **Packages for Linux** - `.deb`, `.rpm` and a generic tarball.
 - **GitHub Action** - build LaTeX PDFs in CI with `MrzAhmadi/Texiom@main`.
@@ -36,7 +33,6 @@ installation required on your machine.
 ```bash
 sudo dpkg -i texiom_*.deb      # install from the Releases page (see below for rpm/tarball)
 texiom --dir ~/my-paper --file paper.tex
-texiom --edit                  # or open the live browser editor
 texiom packs                   # see the optional extras (packages, fonts, languages)
 ```
 
@@ -142,58 +138,10 @@ Only run one `--watch` per file at a time - two instances writing to the
 same `.aux`/`.log` files at once will race each other and can produce
 spurious `latexmk` errors.
 
-### Live browser editor
+### Rebuilding as you type, before you save
 
-For a rebuild-as-you-type experience, pass `--edit`:
-
-```bash
-texiom --edit
-```
-
-![Texiom live browser editor](assets/sc1.png)
-
-No `--dir`/`--file` needed - the editor's project lives entirely inside a
-persistent Docker volume (`texiom-workspace`), not on your host
-filesystem. Use the sidebar to create folders/files, upload existing files
-(images, `.bib`, etc.), rename, and delete - everything is managed from
-the browser. The volume persists across sessions, so your project is
-exactly as you left it the next time you run `texiom --edit`, even after
-the container exits.
-
-The browser splits in two: your `.tex`/`.bib` source on the left, the
-compiled PDF on the right, with a file-tree sidebar for the project. Every
-edit recompiles automatically (debounced briefly after you stop typing)
-and refreshes the PDF; auxiliary build files (`.aux`, `.log`, `.fls`,
-`.fdb_latexmk`, etc.) are always cleaned up after a successful build,
-leaving just the `.pdf` (plus the small `.synctex.gz` needed for PDF↔source
-jump navigation) next to your `.tex` source. The toolbar also lets you
-compile manually or switch to dark mode; the sidebar lets you switch
-between open files via tabs - see the in-app "⌨ Shortcuts" menu (or press
-F1) for the full list of keyboard shortcuts, including Ctrl+S to save.
-Ctrl+C in the terminal stops the session; the tab picks back up on its
-own once you run `--edit` again. Run `texiom --kill-edit` if you need
-to stop a session without a terminal open (e.g. it's stuck or was
-disowned).
-
-When a build fails, the right pane lists each error (and warnings that carry
-a line number) with the offending source line. Click one to jump straight to
-that line - even inside an `\input`/`\include`d file, which opens in a tab
-without changing which file gets compiled - and the lines are highlighted in
-the editor. After a successful build with warnings, click the status text in
-the toolbar to see them; the full log stays available under "Full log".
-
-It's a small local web server (source and PDF only ever touch
-`127.0.0.1`), not a general-purpose editor - no autocomplete, snippets, or
-extensions beyond what's listed above.
-
-To wipe the persistent project and start over: `docker volume rm
-texiom-workspace` (only while no `--edit` session is running).
-
-#### Rebuilding as you type, before you save (using your own editor instead)
-
-If you'd rather keep using VS Code (or another editor) instead of the
-browser-based `--edit`, `--watch` only sees changes once they're written
-to disk, and an editor's unsaved buffer lives in memory only - so with a
+Write in VS Code (or any editor) and let `--watch` rebuild. `--watch` only sees
+changes once they're written to disk, and an editor's unsaved buffer lives in memory only - so with a
 manual save, the rebuild is one keystroke-to-save behind you. To have it
 kick in automatically, enable Auto Save in VS Code so it writes the file
 for you shortly after you stop typing:
@@ -227,23 +175,21 @@ Ctrl+S needed.
 
 | Flag              | Description                                                |
 |-------------------|-------------------------------------------------------------|
-| `-d, --dir DIR`   | Directory containing the `.tex` file (not used with `--edit`) |
-| `-f, --file FILE` | Name of the `.tex` file (`.tex` extension optional); not used with `--edit` |
+| `-d, --dir DIR`   | Directory containing the `.tex` file                        |
+| `-f, --file FILE` | Name of the `.tex` file (`.tex` extension optional)         |
 | `-t, --tag TAG`   | Docker image tag to use/build (default: `texiom`)         |
 | `-r, --rebuild`   | Force a fresh image build even if one already exists        |
 | `--no-pull`       | Never download the prebuilt image from GHCR; always build locally |
 | `--shell-escape`  | Allow LaTeX to run external programs (needed by `minted`) |
 | `--apt PKGS`      | Install extra apt packages (comma-separated, repeatable) |
 | `--pip PKGS`      | Install extra pip packages (comma-separated, repeatable) |
-| `-E, --engine ENGINE` | LaTeX engine: `pdflatex` (default), `xelatex` or `lualatex`; not used with `--edit` |
+| `-E, --engine ENGINE` | LaTeX engine: `pdflatex` (default), `xelatex` or `lualatex` |
 | `-p, --pdf-only`  | Remove `latexmk`'s auxiliary files after a successful build, leaving only the `.pdf` |
 | `-w, --watch`     | Rebuild automatically whenever the `.tex` file changes, until Ctrl+C |
-| `-e, --edit`      | Open the browser editor for your persistent in-container project, until Ctrl+C |
-| `-k, --kill-edit` | Stop any running `--edit` session (frees its port) and exit |
 | `-v, --version`   | Show the installed version                                  |
 | `-h, --help`      | Show usage                                                   |
 
-The first run downloads the small base image (roughly 350 MB) from GitHub
+The first run downloads the small base image (roughly 330 MB) from GitHub
 Container Registry (`ghcr.io/mrzahmadi/texiom:slim`) and shows the download
 progress. If it is unavailable, or doesn't match your installed version,
 `texiom` builds the image locally instead (a few minutes) - pass `--no-pull`
@@ -281,8 +227,12 @@ texiom remove science
 Packs are stored in your Texiom image, and your selection in
 `~/.config/texiom/packs`. Adding a pack downloads only that pack. Removing one
 reinstalls the remaining packs on the base image. `texiom add full` installs
-every TeX Live collection (without the documentation). `texiom --edit`
-uses your packs too.
+every TeX Live collection (without the documentation).
+
+Writing a résumé? The `moderncv` and `europecv` classes are already in the base
+image. Icon fonts such as `fontawesome5` come with the `fonts-extra` pack.
+Templates that are not part of TeX Live (for example `awesome-cv` or `altacv`)
+are not in any pack: put their `.cls` file next to your `.tex`.
 
 ### When a package is missing
 
@@ -331,12 +281,24 @@ texiom -d . --apt inkscape,ghostscript --pip pygments
 
 Texiom adds a small layer on top of the base image and caches it, so the
 install runs once per package set (and again only when the base image changes).
-Extra packages apply to compiling, not to `--edit`.
-
+Python packages (`--pip`) install `python3-pip` into that layer on demand; it is
+not part of the base image.
 For `minted`, install the `minted` pack (`texiom add minted`) and enable
 `shell_escape = true` (or pass `--shell-escape`).
 
 ## Upgrading from 0.0.64 or earlier
+
+The browser editor (`texiom --edit`) was removed; Texiom is now a build tool and
+`--watch` pairs it with the editor you already use. Projects you kept in the
+editor live in the Docker volume `texiom-workspace`, which Texiom no longer
+touches. Copy them out before you ever remove that volume:
+
+```bash
+mkdir -p texiom-projects
+docker run --rm -u "$(id -u):$(id -g)" -v texiom-workspace:/from:ro \
+  -v "$PWD/texiom-projects":/to ubuntu:24.04 cp -r /from/. /to/
+```
+
 
 The default image used to contain all of TeX Live. It is now a small base image
 plus packs, so a document that used a package outside the base fails with a
@@ -444,7 +406,7 @@ jobs:
 ## Keywords
 
 LaTeX, Docker, TeX Live, pdflatex, xelatex, lualatex, latexmk, biber, online
-LaTeX editor, Overleaf alternative, offline LaTeX editor, PDF compiler, GitHub
+LaTeX compiler, offline LaTeX build tool, Overleaf alternative for local builds, PDF compiler, GitHub
 Action, Dev Container.
 
 ## License

@@ -9,7 +9,6 @@ fail() { echo "SMOKE TEST FAILED: $*" >&2; exit 1; }
 
 [[ "$(label texiom.dockerhash)" == "$HASH" ]] || fail "image carries the wrong build hash"
 [[ "$(label texiom.variant)" == "$VARIANT" ]] || fail "image is not the $VARIANT variant"
-docker run --rm "$IMAGE" python3 -c "import fastapi, uvicorn" || fail "editor dependencies are missing"
 docker run --rm "$IMAGE" test -x /usr/local/bin/texiom-action-entrypoint || fail "Action entrypoint is missing"
 
 WORK="$(mktemp -d)"

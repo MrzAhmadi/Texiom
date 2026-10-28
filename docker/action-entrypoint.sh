@@ -39,6 +39,7 @@ if [[ -n "$(echo $APT_PKGS)" ]]; then
     apt-get update -q && apt-get install -y -q $APT_PKGS
 fi
 if [[ -n "$(echo $PIP_PKGS)" ]]; then
+    apt-get update -q && apt-get install -y -q --no-install-recommends python3-pip
     pip3 install --break-system-packages --no-cache-dir $PIP_PKGS
 fi
 

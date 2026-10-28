@@ -1,14 +1,14 @@
 # Texiom
 
-> Texiom is a Docker-based LaTeX compiler and live browser editor for Linux and WSL2. It builds any .tex file into a PDF with pdflatex, xelatex or lualatex (via latexmk) without installing TeX Live on the host; the only requirement is Docker and Bash.
+> Texiom is a Docker-based LaTeX compiler for Linux and WSL2. It builds any .tex file into a PDF with pdflatex, xelatex or lualatex (via latexmk) without installing TeX Live on the host; the only requirement is Docker and Bash.
 
 Current version: 0.0.80.
 
 Key features:
 - Compile: `texiom -d DIR -f FILE.tex`, with `--engine`, `--watch`, `--pdf-only`, `--shell-escape`
-- Live browser editor: `texiom --edit` (source and PDF side by side, auto-recompile, clickable build errors with jump-to-line, SyncTeX navigation, project stored in a persistent Docker volume)
+- Watch mode: `texiom --watch` rebuilds on every save, so you can write in any editor
 - Per-project config: `texiom.toml` next to the .tex file (file, engine, pdf_only, watch, shell_escape, apt, pip)
-- Small first download: the default `slim` base image (core LaTeX, XeTeX, LuaTeX, biblatex, biber; roughly 350 MB) from GHCR; `--no-pull` forces a local build
+- Small first download: the default `slim` base image (core LaTeX, XeTeX, LuaTeX, biblatex, biber; roughly 330 MB) from GHCR; `--no-pull` forces a local build
 - Packs: `texiom packs` lists optional extras (science, publishers, fonts-extra, lang-*, minted, inkscape, full, ...) (installed ones are marked [x]); `texiom add` / `texiom remove` install them once, globally (selection in ~/.config/texiom/packs)
 - Clear missing-package errors: a failed build names the missing LaTeX package or tool and the pack that provides it, and offers to install it and retry
 - Per-project extras: `--apt` / `--pip` (or the same keys in texiom.toml) install into a small cached layer on top of the image
@@ -17,7 +17,7 @@ Key features:
 
 ## Docs
 
-- [README](https://raw.githubusercontent.com/MrzAhmadi/Texiom/main/README.md): Installation, usage, all options, texiom.toml, packs, missing-package help, extra packages, live editor, GitHub Action, Dev Container
+- [README](https://raw.githubusercontent.com/MrzAhmadi/Texiom/main/README.md): Installation, usage, all options, texiom.toml, packs, missing-package help, extra packages, watch mode, GitHub Action, Dev Container
 - [Full documentation](https://mrzahmadi.github.io/Texiom/llms-full.txt): README and CLI help in a single file
 - [Website](https://mrzahmadi.github.io/Texiom/): Project landing page
 
