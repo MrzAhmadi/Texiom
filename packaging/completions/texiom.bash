@@ -2,8 +2,28 @@ _texiom_completions() {
     local cur prev
     _init_completion || return
 
-    local long_opts="--dir --file --tag --rebuild --no-pull --shell-escape --apt --pip --engine --pdf-only --watch --edit --version --help"
-    local short_opts="-d -f -t -r -E -p -w -e -v -h"
+    local long_opts="--dir --file --tag --rebuild --no-pull --shell-escape --apt --pip --engine --pdf-only --watch --edit --kill-edit --version --help"
+    local short_opts="-d -f -t -r -E -p -w -e -k -v -h"
+
+    # Subcommand: packs / add / remove (first non-option word)
+    local word subcommand="" i
+    for ((i = 1; i < COMP_CWORD; i++)); do
+        word="${COMP_WORDS[i]}"
+        case "$word" in
+            packs|add|remove) subcommand="$word"; break ;;
+        esac
+    done
+    if [[ "$subcommand" == add || "$subcommand" == remove ]] && [[ "$cur" != -* ]]; then
+        local root conf
+        root="$(dirname "$(readlink -f "$(command -v texiom)")")"
+        conf="$root/docker/packs.conf"
+        if [[ "$subcommand" == add ]]; then
+            COMPREPLY=($(compgen -W "$(awk -F'\t' '!/^#/ && NF >= 4 {print $1}' "$conf" 2>/dev/null)" -- "$cur"))
+        else
+            COMPREPLY=($(compgen -W "$(cat "${XDG_CONFIG_HOME:-$HOME/.config}/texiom/packs" 2>/dev/null)" -- "$cur"))
+        fi
+        return
+    fi
 
     case "$prev" in
         -d|--dir)
@@ -38,6 +58,10 @@ _texiom_completions() {
             ;;
     esac
 
+    if [[ -z "$subcommand" && "$cur" != -* ]]; then
+        COMPREPLY=($(compgen -W "packs add remove" -- "$cur"))
+        return
+    fi
     COMPREPLY=($(compgen -W "$long_opts $short_opts" -- "$cur"))
 } &&
 complete -F _texiom_completions texiom

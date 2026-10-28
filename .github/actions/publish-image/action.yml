@@ -1,0 +1,99 @@
+name: Publish Texiom image
+description: Build one image variant, smoke-test it, and push it to GHCR - or just add the version tags when an identical image is already published.
+
+inputs:
+  target:
+    description: 'Dockerfile target: slim or full'
+    required: true
+  version:
+    description: 'Release version from the VERSION file'
+    required: true
+  token:
+    description: 'Token with packages:write'
+    required: true
+  tags:
+    description: 'Image references to publish, one per line. The first one is the primary tag.'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Hash the Docker build context
+      id: hash
+      shell: bash
+      run: |
+        source lib/image.sh
+        echo "value=$(docker_context_hash .)" >> "$GITHUB_OUTPUT"
+
+    - name: Log in to GHCR
+      uses: docker/login-action@v4
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ inputs.token }}
+
+    - name: Check whether an identical image is already published
+      id: published
+      shell: bash
+      env:
+        TAGS: ${{ inputs.tags }}
+        HASH: ${{ steps.hash.outputs.value }}
+      run: |
+        source lib/image.sh
+        primary="$(head -n1 <<<"$TAGS")"
+        remote="$(remote_image_hash "$primary")"
+        if [[ -n "$remote" && "$remote" == "$HASH" ]]; then
+          echo "current=true" >> "$GITHUB_OUTPUT"
+          echo "$primary already carries build hash ${HASH:0:12} - skipping the build."
+        else
+          echo "current=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Add the new version tags to the existing image
+      if: steps.published.outputs.current == 'true'
+      shell: bash
+      env:
+        TAGS: ${{ inputs.tags }}
+      run: |
+        primary="$(head -n1 <<<"$TAGS")"
+        for tag in $TAGS; do
+          [[ "$tag" == "$primary" ]] || docker buildx imagetools create -t "$tag" "$primary"
+        done
+
+    - name: Set up Buildx
+      if: steps.published.outputs.current != 'true'
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build (cached) and load locally for testing
+      if: steps.published.outputs.current != 'true'
+      uses: docker/build-push-action@v7
+      with:
+        context: docker
+        file: docker/Dockerfile
+        target: ${{ inputs.target }}
+        load: true
+        tags: texiom-smoke:${{ inputs.target }}
+        build-args: |
+          TEXIOM_VERSION=${{ inputs.version }}
+          TEXIOM_DOCKER_HASH=${{ steps.hash.outputs.value }}
+        cache-from: type=gha,scope=${{ inputs.target }}
+        cache-to: type=gha,mode=max,scope=${{ inputs.target }}
+
+    - name: Smoke test
+      if: steps.published.outputs.current != 'true'
+      shell: bash
+      run: bash tests/smoke.sh texiom-smoke:${{ inputs.target }} ${{ inputs.target }} ${{ steps.hash.outputs.value }}
+
+    - name: Push (reuses the cached build)
+      if: steps.published.outputs.current != 'true'
+      uses: docker/build-push-action@v7
+      with:
+        context: docker
+        file: docker/Dockerfile
+        target: ${{ inputs.target }}
+        push: true
+        tags: ${{ inputs.tags }}
+        build-args: |
+          TEXIOM_VERSION=${{ inputs.version }}
+          TEXIOM_DOCKER_HASH=${{ steps.hash.outputs.value }}
+        cache-from: type=gha,scope=${{ inputs.target }}

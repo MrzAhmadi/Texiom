@@ -1,3 +1,5 @@
+# shellcheck shell=bash
+# shellcheck disable=SC2034  # the variables below belong to the sourcing script
 # Shared by the texiom CLI and the GitHub Action entrypoint (installed in the
 # image as /usr/local/lib/texiom-config.sh). Expects TEX_FILE, ENGINE,
 # PDF_ONLY, WATCH, SHELL_ESCAPE, APT_PKGS and PIP_PKGS to be defined.

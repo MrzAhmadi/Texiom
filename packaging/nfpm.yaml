@@ -16,6 +16,9 @@ contents:
   - src: ./docker
     dst: /usr/lib/texiom/docker
 
+  - src: ./lib
+    dst: /usr/lib/texiom/lib
+
   - src: ./VERSION
     dst: /usr/lib/texiom/VERSION
 

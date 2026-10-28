@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Answers the three registry requests remote_image_hash makes; fails when FAKE_REMOTE_HASH is unset.
+[[ -n "${FAKE_REMOTE_HASH:-}" ]] || exit 22
+url="${*: -1}"
+case "$url" in
+    *token*) echo '{"token":"t0ken"}' ;;
+    *manifests*) echo '{"config": {"mediaType": "x", "size": 1, "digest": "sha256:abc123"}}' ;;
+    *blobs*) echo "{\"config\":{\"Labels\":{\"texiom.dockerhash\":\"$FAKE_REMOTE_HASH\"}}}" ;;
+    *) exit 22 ;;
+esac

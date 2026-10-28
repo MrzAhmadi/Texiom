@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# Stateful stand-in for the docker CLI, used by tests/cli.sh so no real Docker is touched.
+# State lives in $FAKE_STATE: images/<tag> files with id= and label.<key>= lines, plus calls.log.
+set -u
+S="${FAKE_STATE:?}"
+mkdir -p "$S/images"
+log() { echo "$*" >> "$S/calls.log"; }
+img() { local t="${1//\//_}"; echo "$S/images/${t//:/_}"; }
+log "docker $*"
+
+case "$1" in
+image)
+    [[ "$2" == inspect ]] || exit 0
+    shift 2
+    fmt=""; if [[ "${1:-}" == "--format" ]]; then fmt="$2"; shift 2; fi
+    f="$(img "$1")"; [[ -f "$f" ]] || exit 1
+    case "$fmt" in
+        "{{.Id}}") sed -n 's/^id=//p' "$f" ;;
+        *'index .Config.Labels'*)
+            key="${fmt#*\"}"; key="${key%%\"*}"
+            sed -n "s/^label\\.$key=//p" "$f" | tail -1 ;;
+    esac ;;
+build)
+    shift; tag=""; target=""; args=(); last=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -t) tag="$2"; shift 2 ;;
+            --target) target="$2"; shift 2 ;;
+            --build-arg) args+=("$2"); shift 2 ;;
+            -f) shift 2 ;;
+            *) last="$1"; shift ;;
+        esac
+    done
+    f="$(img "$tag")"; n=$(( $(cat "$S/counter" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$S/counter"
+    tmp="$(mktemp)"
+    echo "id=sha256:img$n-$tag" > "$tmp"
+    if [[ "$last" == "-" ]]; then
+        df="$(cat)"; log "dockerfile<<$df>>"
+        from="$(sed -n 's/^FROM //p' <<<"$df")"
+        if [[ -f "$(img "$from")" ]]; then grep '^label\.' "$(img "$from")" >> "$tmp" || true; fi
+        while IFS= read -r kv; do
+            val="${kv#*=\"}"; echo "label.${kv%%=*}=${val%\"}" >> "$tmp"
+        done < <(grep -o 'texiom\.[a-z]*="[^"]*"' <<<"$df" || true)
+    else
+        for a in ${args[@]+"${args[@]}"}; do
+            [[ "$a" == TEXIOM_DOCKER_HASH=* ]] && echo "label.texiom.dockerhash=${a#*=}" >> "$tmp"
+        done
+        echo "label.texiom.variant=${target:-full}" >> "$tmp"
+    fi
+    mv "$tmp" "$f" ;;
+pull)
+    [[ -n "${FAKE_PULL_HASH:-}" ]] || { echo "pull failed" >&2; exit 1; }
+    { echo "id=sha256:pulled-$FAKE_PULL_HASH"; echo "label.texiom.dockerhash=$FAKE_PULL_HASH"; } > "$(img "$2")" ;;
+tag) cp "$(img "$2")" "$(img "$3")" ;;
+rmi) rm -f "$(img "$2")" ;;
+volume|ps|stop) exit 0 ;;
+run)
+    shift
+    mount=""; image=""; rest=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --rm) shift ;;
+            -v) if [[ "$2" == *:/workspace ]]; then mount="${2%%:/workspace}"; fi; shift 2 ;;
+            -w|-p) shift 2 ;;
+            *) image="$1"; shift; rest=("$@"); break ;;
+        esac
+    done
+    log "run-image $image"
+    if [[ "${rest[0]:-}" == "latexmk" ]]; then
+        if [[ -n "${FAKE_BUILD_OUTPUT:-}" ]]; then cat "$FAKE_BUILD_OUTPUT"; fi
+        status="${FAKE_BUILD_STATUS:-0}"
+        if [[ "$status" -eq 0 && -n "$mount" ]]; then
+            f="${rest[${#rest[@]}-1]}"; touch "$mount/${f%.tex}.pdf"
+        fi
+        exit "$status"
+    fi ;;
+esac
+exit 0

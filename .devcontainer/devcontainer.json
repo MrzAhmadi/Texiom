@@ -2,7 +2,8 @@
     "name": "Texiom",
     "build": {
         "dockerfile": "../docker/Dockerfile",
-        "context": "../docker"
+        "context": "../docker",
+        "target": "full"
     },
     "workspaceFolder": "/workspace",
     "customizations": {

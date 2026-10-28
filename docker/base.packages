@@ -1,0 +1,16 @@
+# Packages in the slim base image (one per line, # starts a comment).
+# Installed without recommends; everything else is an optional pack (see packs.conf).
+texlive-latex-base
+texlive-latex-recommended
+texlive-fonts-recommended
+texlive-xetex
+texlive-luatex
+texlive-bibtex-extra
+tex-gyre
+cm-super
+latexmk
+biber
+make
+procps
+python3
+python3-pip

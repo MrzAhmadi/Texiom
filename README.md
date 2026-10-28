@@ -20,7 +20,9 @@ installation required on your machine.
 
 ## Features
 
-- **No local LaTeX install** - a full `texlive-full` + `latexmk` + `biber` image does the work.
+- **No local LaTeX install** - a Docker image with TeX Live, `latexmk` and `biber` does the work.
+- **Small first download** - the base image is roughly 350 MB; add what you need with `texiom add` (science, publisher templates, fonts, languages, ...) and never download it twice.
+- **Clear errors** - when a build fails because a package or tool is not installed, Texiom says which one and which pack provides it.
 - **Three engines** - `pdflatex`, `xelatex` and `lualatex` (for `fontspec` and custom fonts).
 - **Live browser editor** - `texiom --edit` gives you source and PDF side by side, with auto-recompile, clickable build errors, SyncTeX jump navigation and dark mode.
 - **Watch mode** - `texiom --watch` rebuilds on every save.
@@ -35,15 +37,20 @@ installation required on your machine.
 sudo dpkg -i texiom_*.deb      # install from the Releases page (see below for rpm/tarball)
 texiom --dir ~/my-paper --file paper.tex
 texiom --edit                  # or open the live browser editor
+texiom packs                   # see the optional extras (packages, fonts, languages)
 ```
 
 ## Why Texiom
 
 Installing a full TeX Live distribution locally is slow, large, and easy to
-get out of sync across machines. Texiom packages `texlive-full`,
-`latexmk`, and `biber` into a single Docker image (also usable as a VS Code
-Dev Container) and provides a small `texiom` command that compiles any
-`.tex` file on your host by mounting its directory into the container.
+get out of sync across machines. Texiom packages TeX Live, `latexmk` and
+`biber` into Docker images (also usable as a VS Code Dev Container) and
+provides a small `texiom` command that compiles any `.tex` file on your host
+by mounting its directory into the container.
+
+The default image is deliberately small - core LaTeX, XeTeX, LuaTeX, biblatex
+and biber - so the first run is quick. Everything else is an optional
+[pack](#packs-extra-latex-packages-and-tools) that you install once, on demand.
 
 ## Requirements
 
@@ -207,6 +214,15 @@ With this on, VS Code saves the file on its own a second after you stop
 typing, and a running `--watch` picks up that save and rebuilds - no manual
 Ctrl+S needed.
 
+### Commands
+
+| Command                | What it does                                                       |
+|------------------------|--------------------------------------------------------------------|
+| `texiom`               | Compile a `.tex` file (prompts, or use `--dir` / `--file`)         |
+| `texiom packs`         | List optional packs; installed ones are marked `[x]` (instant)     |
+| `texiom add [PACK...]` | Install packs; without names, choose from a numbered list          |
+| `texiom remove [PACK...]` | Uninstall packs                                                 |
+
 ### Options
 
 | Flag              | Description                                                |
@@ -227,14 +243,63 @@ Ctrl+S needed.
 | `-v, --version`   | Show the installed version                                  |
 | `-h, --help`      | Show usage                                                   |
 
-The first run downloads the prebuilt image from GitHub Container Registry
-(`ghcr.io/mrzahmadi/texiom`, a few GB). If it is unavailable, or doesn't match
-your installed version, `texiom` builds the image locally instead (a few
-minutes, since `texlive-full` is a large distribution) - pass `--no-pull` to
-always build locally. Every run after that reuses the cached image, so
-compilation is fast. Upgrading `texiom` to a new version automatically
-rebuilds the image once if that version needs a different one - no manual
-`--rebuild` required.
+The first run downloads the small base image (roughly 350 MB) from GitHub
+Container Registry (`ghcr.io/mrzahmadi/texiom:slim`) and shows the download
+progress. If it is unavailable, or doesn't match your installed version,
+`texiom` builds the image locally instead (a few minutes) - pass `--no-pull`
+to always build locally. Every run after that reuses the cached image.
+Upgrading `texiom` to a new version automatically fetches the new base image
+once if that version needs a different one, and reinstalls your packs on top
+of it - no manual `--rebuild` required.
+
+### Packs: extra LaTeX packages and tools
+
+The base image covers most documents. Anything beyond it - science and math
+packages, publisher templates, extra fonts, other languages, tools like
+`latexdiff` - is a *pack*. `texiom packs` lists them all instantly, with the ones you
+have installed marked `[x]`:
+
+```
+$ texiom packs
+Packages
+  [x] science          Science and math (siunitx, mhchem, algorithm2e)
+  [ ] publishers       Publisher classes (IEEEtran, acmart, elsarticle)
+  ...
+Languages
+  [ ] lang-arabic      Arabic and Persian (xepersian, bidi)
+  ...
+```
+
+Install what you need - once, for every project from then on:
+
+```bash
+texiom add science lang-arabic     # installs both
+texiom add                         # no names: pick from a numbered list
+texiom remove science
+```
+
+Packs are stored in your Texiom image, and your selection in
+`~/.config/texiom/packs`. Adding a pack downloads only that pack. Removing one
+reinstalls the remaining packs on the base image. `texiom add full` installs
+every TeX Live collection (without the documentation). `texiom --edit`
+uses your packs too.
+
+### When a package is missing
+
+If a build fails because a LaTeX package or tool is not installed, Texiom says so
+instead of leaving you with a raw log:
+
+```
+The build failed because something is not installed:
+  - LaTeX package 'algorithm2e.sty' is not installed. It is provided by the pack 'science'.
+Install with: texiom add science
+Install 'science' now and build again? [Y/n]
+```
+
+Answering yes installs the pack and re-runs the same command. The same applies to
+`minted` (needs the `minted` pack), `\includesvg` (`inkscape`) and plots through
+`gnuplot`. A missing file that is not a known package - your own style file, an
+image - is reported as such rather than blamed on a pack.
 
 ### Project config (`texiom.toml`)
 
@@ -254,10 +319,11 @@ pip = ["pygments"]                    # extra Python packages
 All keys are optional. Command-line flags override the file, except `apt` and
 `pip`, which are combined.
 
-### Extra packages
+### Extra system and Python packages (per project)
 
-Need a tool the base image lacks? List it under `apt` / `pip` in
-`texiom.toml`, or pass `--apt` / `--pip` (comma-separated, repeatable):
+Need something that is not a pack - an arbitrary Ubuntu or PyPI package for one
+project? List it under `apt` / `pip` in `texiom.toml`, or pass `--apt` / `--pip`
+(comma-separated, repeatable):
 
 ```bash
 texiom -d . --apt inkscape,ghostscript --pip pygments
@@ -267,27 +333,46 @@ Texiom adds a small layer on top of the base image and caches it, so the
 install runs once per package set (and again only when the base image changes).
 Extra packages apply to compiling, not to `--edit`.
 
-For `minted`, add `pygments` under `pip` and enable `shell_escape = true` (or
-pass `--shell-escape`).
+For `minted`, install the `minted` pack (`texiom add minted`) and enable
+`shell_escape = true` (or pass `--shell-escape`).
+
+## Upgrading from 0.0.64 or earlier
+
+The default image used to contain all of TeX Live. It is now a small base image
+plus packs, so a document that used a package outside the base fails with a
+message naming the pack to install (see above). To get the old behavior in one
+step: `texiom add full`.
 
 ## Using as a VS Code Dev Container
 
-Open this folder (or any project that references this `.devcontainer/`) in
+The Dev Container builds the `full` image (every TeX Live collection). Open this folder (or any project that references this `.devcontainer/`) in
 VS Code with the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
 and choose "Reopen in Container" for an interactive environment with the
 LaTeX Workshop extension pre-configured to build on save.
 
 ## Using Texiom as a GitHub Action
 
-The same image is published to GHCR and available as a reusable GitHub
+The same images are published to GHCR and available as a reusable GitHub
 Action, so any repo with a `.tex` file can build a PDF on every push
-without installing anything:
+without installing anything. By default it runs the `full` image (every TeX
+Live collection); for a much smaller pull, use the `slim` image and add what
+you need with `apt`:
 
 ```yaml
 - uses: actions/checkout@v4
 - uses: MrzAhmadi/Texiom@main
   with:
     root_file: paper.tex
+```
+
+Faster, smaller (slim base plus the Ubuntu packages you need):
+
+```yaml
+- uses: MrzAhmadi/Texiom@main
+  with:
+    root_file: paper.tex
+    image: ghcr.io/mrzahmadi/texiom:slim
+    apt: texlive-science
 ```
 
 Pin to a released tag (e.g. `@v0.0.3`) instead of `@main` for reproducible
@@ -306,7 +391,7 @@ builds once one exists.
 | `args`              | Extra arguments appended to the `latexmk` command                        | *(none)*                         |
 | `upload_artifact`   | Upload the PDF as a workflow artifact                                    | `false`                          |
 | `artifact_name`     | Name of the uploaded artifact                                            | `pdf`                            |
-| `image`             | Texiom image to run; pin a version tag for reproducible builds           | `ghcr.io/mrzahmadi/texiom:latest` |
+| `image`             | Texiom image to run: `:latest` / `:full` (everything) or `:slim`; pin a version tag for reproducible builds | `ghcr.io/mrzahmadi/texiom:latest` |
 
 Inputs take precedence over `texiom.toml` (`apt` and `pip` lists are
 combined), so a repo that already has a `texiom.toml` needs no inputs at all

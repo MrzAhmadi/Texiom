@@ -13,6 +13,13 @@ permissions:
 
 jobs:
 
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: bash tests/run.sh
+
   packages:
     name: Build packages
     runs-on: ubuntu-latest
@@ -52,6 +59,7 @@ jobs:
           mkdir -p "${DIR}"
           cp texiom "${DIR}/texiom"
           cp -r docker "${DIR}/docker"
+          cp -r lib "${DIR}/lib"
           cp -r packaging/completions "${DIR}/completions"
           cp VERSION "${DIR}/VERSION"
           cp README.md "${DIR}/"
@@ -67,45 +75,52 @@ jobs:
             dist/*.rpm
             dist/*.tar.gz
 
-  docker-image:
-    name: Build and push Docker image
-    needs: packages
+  image-slim:
+    name: Slim image (default)
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-    env:
-      VERSION: ${{ needs.packages.outputs.version }}
     steps:
       - uses: actions/checkout@v7
-
-      - name: Hash Docker build context
-        id: hash
-        run: echo "value=$(find docker -type f -not -path 'docker/editor/*' -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v4
+      - id: ver
+        run: echo "value=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_OUTPUT"
+      - uses: ./.github/actions/publish-image
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push
-        uses: docker/build-push-action@v7
-        with:
-          context: docker
-          file: docker/Dockerfile
-          push: true
-          build-args: |
-            TEXIOM_VERSION=${{ env.VERSION }}
-            TEXIOM_DOCKER_HASH=${{ steps.hash.outputs.value }}
+          target: slim
+          version: ${{ steps.ver.outputs.value }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           tags: |
-            ghcr.io/mrzahmadi/texiom:${{ env.VERSION }}
+            ghcr.io/mrzahmadi/texiom:slim
+            ghcr.io/mrzahmadi/texiom:${{ steps.ver.outputs.value }}-slim
+
+  # Not on the release's critical path: the Action and Dev Container use this image,
+  # the CLI does not. Cached layers keep it quick unless the package lists change.
+  image-full:
+    name: Full image
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - id: ver
+        run: echo "value=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_OUTPUT"
+      - uses: ./.github/actions/publish-image
+        with:
+          target: full
+          version: ${{ steps.ver.outputs.value }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tags: |
             ghcr.io/mrzahmadi/texiom:latest
+            ghcr.io/mrzahmadi/texiom:full
+            ghcr.io/mrzahmadi/texiom:${{ steps.ver.outputs.value }}
 
   release:
     name: Create GitHub Release
-    needs: [packages, docker-image]
+    needs: [test, packages, image-slim]
     runs-on: ubuntu-latest
     env:
       VERSION: ${{ needs.packages.outputs.version }}

@@ -12,7 +12,9 @@ ENGINE="${INPUT_ENGINE:-}"
 SHELL_ESCAPE=0; [[ "${INPUT_SHELL_ESCAPE:-}" != true ]] || SHELL_ESCAPE=1
 INPUT_APT="${INPUT_APT:-}"; APT_PKGS="${INPUT_APT//,/ }"
 INPUT_PIP="${INPUT_PIP:-}"; PIP_PKGS="${INPUT_PIP//,/ }"
+# shellcheck disable=SC2034  # only read by load_config
 PDF_ONLY=0
+# shellcheck disable=SC2034
 WATCH=0
 
 cd "$WORKING_DIRECTORY"

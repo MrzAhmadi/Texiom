@@ -6,10 +6,15 @@ DOCKER_DIR="$SCRIPT_DIR/docker"
 # shellcheck source=docker/config.sh
 source "$DOCKER_DIR/config.sh"
 VERSION="$(cat "$SCRIPT_DIR/VERSION" 2>/dev/null || echo "unknown")"
+ORIGINAL_ARGS=("$@")
+START_DIR="$PWD"
 IMAGE_TAG="texiom"
+RUN_IMAGE=""
 FORCE_REBUILD=0
 NO_PULL=0
-REGISTRY_IMAGE="ghcr.io/mrzahmadi/texiom:latest"
+REGISTRY_IMAGE="ghcr.io/mrzahmadi/texiom:slim"
+COMMAND=""
+POSITIONAL=()
 PDF_ONLY=0
 ENGINE=""
 WATCH=0
@@ -23,6 +28,13 @@ TEX_FILE=""
 APT_PKGS=""
 PIP_PKGS=""
 
+# shellcheck source=lib/image.sh
+source "$SCRIPT_DIR/lib/image.sh"
+# shellcheck source=lib/packs.sh
+source "$SCRIPT_DIR/lib/packs.sh"
+# shellcheck source=lib/diagnose.sh
+source "$SCRIPT_DIR/lib/diagnose.sh"
+
 bind 'set show-all-if-ambiguous on' 2>/dev/null || true
 bind 'set page-completions off' 2>/dev/null || true
 
@@ -31,17 +43,15 @@ usage() {
 Usage:
   texiom                              interactive prompts
   texiom -d DIR -f FILE.tex           non-interactive
+  texiom packs                        list optional packs; installed ones are marked [x]
+  texiom add [PACK...]                install packs (pick from a list if none given)
+  texiom remove [PACK...]             uninstall packs
   texiom --edit                       open the browser editor - your
                                        project lives entirely inside a
                                        persistent Docker volume, managed
                                        from the browser (create/upload/
                                        rename/delete files and folders);
                                        -d/-f are not used with --edit
-  texiom -d DIR -f FILE.tex --rebuild force a fresh image build
-  texiom -d DIR -f FILE.tex --no-pull build the image locally, never download it
-  texiom -d DIR -f FILE.tex --pdf-only
-  texiom -d DIR -f FILE.tex --engine xelatex
-  texiom -d DIR -f FILE.tex --watch
 
 Options:
   -d, --dir DIR       Directory containing the .tex file (not used with --edit)
@@ -66,31 +76,25 @@ Options:
   -v, --version       Show the installed version
   -h, --help          Show this help message
 
+The first run downloads only a small base image. Missing a LaTeX package? The
+build tells you which pack provides it; install it once with `texiom add`.
+
 A texiom.toml next to the .tex file can set file, engine, pdf_only, watch,
-shell_escape, apt and pip (lists);
-command-line flags override it.
+shell_escape, apt and pip (lists); command-line flags override it.
 USAGE
     exit 0
 }
 
-# Extra packages (--apt / --pip / texiom.toml): a tiny layer on top of the
-# base image, tagged by the base hash + package lists so it is built once.
-build_extras_image() {
-    local apt pip spec
-    apt="$(echo $APT_PKGS)"; pip="$(echo $PIP_PKGS)"
-    [[ -n "$apt$pip" ]] || return 0
-    validate_packages $apt $pip
-    spec="$(printf '%s|%s|%s' "$(docker image inspect --format '{{.Id}}' "$IMAGE_TAG")" "$apt" "$pip" | sha256sum | cut -c1-12)"
-    local extras_tag="${IMAGE_TAG%%:*}-extras:$spec"
-    if ! docker image inspect "$extras_tag" >/dev/null 2>&1; then
-        echo "Building image with extra packages (apt: ${apt:-none}; pip: ${pip:-none}) ..."
-        {
-            echo "FROM $IMAGE_TAG"
-            [[ -z "$apt" ]] || echo "RUN apt-get update && apt-get install -y $apt && rm -rf /var/lib/apt/lists/*"
-            [[ -z "$pip" ]] || echo "RUN pip3 install --break-system-packages --no-cache-dir $pip"
-        } | docker build -t "$extras_tag" -
-    fi
-    IMAGE_TAG="$extras_tag"
+# After a diagnosed failure: offer to install the missing packs and run the same command again.
+offer_install_and_retry() {
+    [[ -n "${MISSING_PACKS:-}" && -z "${TEXIOM_NO_RETRY:-}" && -t 0 && -t 1 ]] || return 0
+    local answer
+    read -r -p "Install '$MISSING_PACKS' now and build again? [Y/n] " answer
+    [[ "${answer:-y}" =~ ^[Yy] ]] || return 0
+    # shellcheck disable=SC2086
+    cmd_add $MISSING_PACKS || return 0
+    cd "$START_DIR"
+    TEXIOM_NO_RETRY=1 exec bash "$SCRIPT_DIR/texiom" "${ORIGINAL_ARGS[@]}"
 }
 
 set_engine() {
@@ -120,7 +124,16 @@ while [[ $# -gt 0 ]]; do
         -k|--kill-edit) KILL_EDIT=1; shift ;;
         -v|--version)  echo "texiom $VERSION"; exit 0 ;;
         -h|--help)     usage ;;
-        *) echo "Unknown option: $1" >&2; usage ;;
+        -*) echo "Unknown option: $1" >&2; usage ;;
+        packs|add|remove)
+            if [[ -z "$COMMAND" ]]; then COMMAND="$1"; else POSITIONAL+=("$1"); fi
+            shift ;;
+        *)
+            if [[ "$COMMAND" == add || "$COMMAND" == remove ]]; then
+                POSITIONAL+=("$1"); shift
+            else
+                echo "Unknown option: $1" >&2; usage
+            fi ;;
     esac
 done
 
@@ -132,69 +145,23 @@ if [[ "$KILL_EDIT" -eq 1 ]]; then
     fi
     echo "Stopping session(s) on port $EDIT_PORT:"
     echo "$CONTAINERS"
-    docker stop $(echo "$CONTAINERS" | cut -d' ' -f1) >/dev/null
+    echo "$CONTAINERS" | cut -d' ' -f1 | xargs docker stop >/dev/null
     echo "Done."
     exit 0
 fi
 
-# Relative paths + C-locale sort so the hash matches the one CI bakes into the GHCR image.
-DOCKER_HASH="$(cd "$DOCKER_DIR/.." && find docker -type f -not -path 'docker/editor/*' -print0 | LC_ALL=C sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1)"
-IMAGE_HASH="$(docker image inspect --format '{{ index .Config.Labels "texiom.dockerhash" }}' "$IMAGE_TAG" 2>/dev/null || true)"
+# Listing packs only reads files; it must not wait for an image.
+if [[ "$COMMAND" == packs ]]; then cmd_packs; exit 0; fi
 
-# Read the build hash baked into the prebuilt image without downloading it
-# (a few KB instead of ~2.7 GB). Prints nothing if anything goes wrong, in
-# which case we fall back to pulling and comparing.
-remote_image_hash() {
-    command -v curl >/dev/null 2>&1 || return 0
-    local repo="${REGISTRY_IMAGE#ghcr.io/}"; repo="${repo%%:*}"
-    local tag="${REGISTRY_IMAGE##*:}"
-    local token manifest digest
-    token="$(curl -fsS --max-time 15 "https://ghcr.io/token?scope=repository:${repo}:pull" 2>/dev/null \
-        | grep -o '"token":"[^"]*"' | head -1 | cut -d'"' -f4)" || return 0
-    [[ -n "$token" ]] || return 0
-    manifest="$(curl -fsS --max-time 15 -H "Authorization: Bearer $token" \
-        -H "Accept: application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json" \
-        "https://ghcr.io/v2/${repo}/manifests/${tag}" 2>/dev/null)" || return 0
-    digest="$(printf '%s' "$manifest" | tr -d '\n ' | grep -o '"config":{[^}]*"digest":"sha256:[0-9a-f]*"' | grep -o 'sha256:[0-9a-f]*')" || return 0
-    [[ -n "$digest" ]] || return 0
-    curl -fsSL --max-time 15 -H "Authorization: Bearer $token" \
-        "https://ghcr.io/v2/${repo}/blobs/${digest}" 2>/dev/null \
-        | grep -o '"texiom.dockerhash":"[0-9a-f]*"' | head -1 | cut -d'"' -f4 || true
-}
+DOCKER_HASH="$(docker_context_hash "$SCRIPT_DIR")"
+ensure_base_image
+# shellcheck disable=SC2046
+ensure_packs_image $(packs_installed)
 
-REMOTE_HASH=""
-if [[ "$FORCE_REBUILD" -eq 0 ]] && [[ "$NO_PULL" -eq 0 ]] && [[ "$IMAGE_HASH" != "$DOCKER_HASH" ]]; then
-    REMOTE_HASH="$(remote_image_hash)"
-fi
-
-if [[ "$FORCE_REBUILD" -eq 0 ]] && [[ "$NO_PULL" -eq 0 ]] && [[ "$IMAGE_HASH" != "$DOCKER_HASH" ]] \
-        && [[ -n "$REMOTE_HASH" ]] && [[ "$REMOTE_HASH" != "$DOCKER_HASH" ]]; then
-    echo "Prebuilt image is for a different version than this install; building locally."
-elif [[ "$FORCE_REBUILD" -eq 0 ]] && [[ "$NO_PULL" -eq 0 ]] && [[ "$IMAGE_HASH" != "$DOCKER_HASH" ]]; then
-    echo "Trying prebuilt image $REGISTRY_IMAGE ..."
-    if docker pull "$REGISTRY_IMAGE" >/dev/null 2>&1; then
-        PULLED_HASH="$(docker image inspect --format '{{ index .Config.Labels "texiom.dockerhash" }}' "$REGISTRY_IMAGE" 2>/dev/null || true)"
-        if [[ "$PULLED_HASH" == "$DOCKER_HASH" ]]; then
-            docker tag "$REGISTRY_IMAGE" "$IMAGE_TAG"
-            IMAGE_HASH="$PULLED_HASH"
-            echo "Using prebuilt image (matches this version)."
-        else
-            echo "Prebuilt image does not match this version; building locally."
-        fi
-    else
-        echo "Prebuilt image unavailable; building locally."
-    fi
-fi
-
-if [[ "$FORCE_REBUILD" -eq 1 ]] || [[ "$IMAGE_HASH" != "$DOCKER_HASH" ]]; then
-    echo "Building image '$IMAGE_TAG' from $DOCKER_DIR (build inputs changed) ..."
-    docker build \
-        --build-arg "TEXIOM_VERSION=$VERSION" \
-        --build-arg "TEXIOM_DOCKER_HASH=$DOCKER_HASH" \
-        -t "$IMAGE_TAG" -f "$DOCKER_DIR/Dockerfile" "$DOCKER_DIR"
-else
-    echo "Using existing image '$IMAGE_TAG' (build inputs unchanged)."
-fi
+case "$COMMAND" in
+    add)    cmd_add ${POSITIONAL[@]+"${POSITIONAL[@]}"}; exit $? ;;
+    remove) cmd_remove ${POSITIONAL[@]+"${POSITIONAL[@]}"}; exit $? ;;
+esac
 
 if [[ "$EDIT_MODE" -eq 1 ]]; then
     docker volume create "$EDIT_VOLUME" >/dev/null
@@ -202,7 +169,7 @@ if [[ "$EDIT_MODE" -eq 1 ]]; then
     docker run --rm -p "127.0.0.1:$EDIT_PORT:8000" \
         -v "$EDIT_VOLUME":/workspace -w /workspace \
         -v "$DOCKER_DIR/editor":/opt/texiom-editor:ro \
-        "$IMAGE_TAG" python3 /opt/texiom-editor/server.py &
+        "$RUN_IMAGE" python3 /opt/texiom-editor/server.py &
     DOCKER_PID=$!
     trap 'kill "$DOCKER_PID" 2>/dev/null || true' INT TERM
     ( sleep 1
@@ -257,12 +224,23 @@ fi
 
 if [[ "$WATCH" -eq 1 ]]; then
     echo "Watching '$TEX_FILE' in '$TEX_DIR' - rebuilding on every change (Ctrl+C to stop) ..."
-    docker run --rm -v "$TEX_DIR":/workspace -w /workspace "$IMAGE_TAG" \
+    docker run --rm -v "$TEX_DIR":/workspace -w /workspace "$RUN_IMAGE" \
         latexmk -pvc -view=none $LATEXMK_ENGINE $SHELL_ESCAPE_OPT -interaction=nonstopmode -halt-on-error "$TEX_FILE" || true
 else
     echo "Compiling '$TEX_FILE' in '$TEX_DIR' with $ENGINE ..."
-    docker run --rm -v "$TEX_DIR":/workspace -w /workspace "$IMAGE_TAG" \
-        latexmk $LATEXMK_ENGINE $SHELL_ESCAPE_OPT -interaction=nonstopmode -halt-on-error "$TEX_FILE"
+    BUILD_LOG="$(mktemp)"
+    trap 'rm -f "$BUILD_LOG"' EXIT
+    set +e
+    docker run --rm -v "$TEX_DIR":/workspace -w /workspace "$RUN_IMAGE" \
+        latexmk $LATEXMK_ENGINE $SHELL_ESCAPE_OPT -interaction=nonstopmode -halt-on-error "$TEX_FILE" 2>&1 \
+        | tee "$BUILD_LOG"
+    BUILD_STATUS="${PIPESTATUS[0]}"
+    set -e
+    if [[ "$BUILD_STATUS" -ne 0 ]]; then
+        diagnose_failure "$BUILD_LOG"
+        offer_install_and_retry
+        exit "$BUILD_STATUS"
+    fi
 fi
 
 PDF_FILE="${TEX_FILE%.tex}.pdf"
