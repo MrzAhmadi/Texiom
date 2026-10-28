@@ -99,6 +99,7 @@ check "installed packs are marked in the listing" out_has "[x] minted"
 tex -d "$PROJECT" -f a.tex
 check "compile succeeds" test "$RC" -eq 0
 check "compile runs in the packs image" calls_have "run-image texiom-packs:installed"
+check "latexmk gets SyncTeX and file:line errors (for editors such as LaTeX Workshop)" calls_have "-synctex=1 -file-line-error -interaction=nonstopmode"
 
 : > "$FAKE_STATE/calls.log"
 tex --rebuild -d "$PROJECT" -f a.tex

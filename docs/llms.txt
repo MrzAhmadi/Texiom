@@ -2,7 +2,7 @@
 
 > Texiom is a Docker-based LaTeX compiler for Linux and WSL2. It builds any .tex file into a PDF with pdflatex, xelatex or lualatex (via latexmk) without installing TeX Live on the host; the only requirement is Docker and Bash.
 
-Current version: 0.0.80.
+Current version: 0.0.81.
 
 Key features:
 - Compile: `texiom -d DIR -f FILE.tex`, with `--engine`, `--watch`, `--pdf-only`, `--shell-escape`
@@ -13,7 +13,8 @@ Key features:
 - Clear missing-package errors: a failed build names the missing LaTeX package or tool and the pack that provides it, and offers to install it and retry
 - Per-project extras: `--apt` / `--pip` (or the same keys in texiom.toml) install into a small cached layer on top of the image
 - GitHub Action with engine, shell_escape, apt/pip, texiom.toml, PDF artifact upload, a pdf_path output and a choice of the `full` or `slim` image
-- VS Code Dev Container, .deb / .rpm / tar.gz packages and an install script
+- VS Code: Texiom can be the LaTeX Workshop build tool (settings in the README); a Dev Container is provided too
+- .deb / .rpm / tar.gz packages and an install script
 
 ## Docs
 

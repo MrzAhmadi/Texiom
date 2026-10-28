@@ -1,6 +1,6 @@
 # Texiom - full documentation
 
-> Generated from README.md and `texiom --help` (version 0.0.80). See llms.txt for the short index.
+> Generated from README.md and `texiom --help` (version 0.0.81). See llms.txt for the short index.
 
 
 # Texiom
@@ -133,6 +133,56 @@ This keeps running in the foreground and recompiles on every change to
 Only run one `--watch` per file at a time - two instances writing to the
 same `.aux`/`.log` files at once will race each other and can produce
 spurious `latexmk` errors.
+
+### VS Code with LaTeX Workshop
+
+Write in VS Code and let Texiom do the building. The
+[LaTeX Workshop](https://marketplace.visualstudio.com/items?itemName=James-Yu.latex-workshop)
+extension shows the PDF next to your source, lists errors in the Problems panel
+and jumps between PDF and source - and Texiom compiles, so you need no TeX Live
+on your machine.
+
+1. Install Texiom (see [Installation](#installation)) and the LaTeX Workshop extension.
+2. Add this to `.vscode/settings.json` in your project (or to your user settings):
+
+   ```json
+   {
+     "latex-workshop.latex.tools": [
+       { "name": "texiom",
+         "command": "texiom",
+         "args": ["--dir", "%DIR%", "--file", "%DOCFILE_EXT%"] },
+       { "name": "texiom-xelatex",
+         "command": "texiom",
+         "args": ["--dir", "%DIR%", "--file", "%DOCFILE_EXT%", "--engine", "xelatex"] }
+     ],
+     "latex-workshop.latex.recipes": [
+       { "name": "Texiom", "tools": ["texiom"] },
+       { "name": "Texiom (XeLaTeX)", "tools": ["texiom-xelatex"] }
+     ],
+     "latex-workshop.latex.recipe.default": "Texiom",
+     "latex-workshop.latex.autoBuild.run": "onSave"
+   }
+   ```
+
+3. Open a `.tex` file and save it (`Ctrl+S`). It builds, and again after every
+   save. Open the PDF with `Ctrl+Alt+V` (or the TeX icon, then *View LaTeX PDF*);
+   `Ctrl+Alt+B` builds on demand and `Ctrl+Alt+J` jumps from the source to the PDF.
+
+Good to know:
+
+- The first build downloads the base image (roughly 330 MB); later builds take seconds.
+- `texiom` must be on the `PATH` of VS Code. If you run Texiom from a git checkout,
+  put the full path to its `texiom` script in `"command"`. On Windows, use VS Code's
+  WSL window.
+- A second PDF extension called `vscode-pdf` conflicts with LaTeX Workshop's viewer;
+  disable it.
+- Do not add `--pdf-only` here: it deletes the `.log` and `.synctex.gz` files that
+  the Problems panel and SyncTeX need.
+- Settings that belong to the project (engine, `shell_escape`, extra packages) are
+  best kept in a [`texiom.toml`](#project-config-texiomtoml); a `% !TEX program`
+  magic comment is not read.
+- If a build needs a pack that is not installed, the output names it. Install it
+  once in a terminal with `texiom add <pack>` - there is no prompt inside VS Code.
 
 ### Rebuilding as you type, before you save
 

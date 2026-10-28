@@ -117,6 +117,19 @@ texiom add full                   # every TeX Live collection (without the docs)
 Install with: texiom add science
 Install 'science' now and build again? [Y/n]</code></pre>
 
+<h2>VS Code</h2>
+<p>Write in VS Code and let Texiom build. <a href="https://marketplace.visualstudio.com/items?itemName=James-Yu.latex-workshop">LaTeX Workshop</a> shows the PDF beside your source, lists errors in the Problems panel and jumps between PDF and source, with no local TeX Live. Install the extension, add this to <code>.vscode/settings.json</code>, and save a <code>.tex</code> file:</p>
+<pre><code>{
+  "latex-workshop.latex.tools": [
+    { "name": "texiom", "command": "texiom",
+      "args": ["--dir", "%DIR%", "--file", "%DOCFILE_EXT%"] }
+  ],
+  "latex-workshop.latex.recipes": [ { "name": "Texiom", "tools": ["texiom"] } ],
+  "latex-workshop.latex.recipe.default": "Texiom",
+  "latex-workshop.latex.autoBuild.run": "onSave"
+}</code></pre>
+<p>More options (XeLaTeX recipe, troubleshooting) are in the <a href="https://github.com/MrzAhmadi/Texiom#vs-code-with-latex-workshop">README</a>.</p>
+
 <h2>GitHub Action</h2>
 <pre><code>- uses: actions/checkout@v4
 - uses: MrzAhmadi/Texiom@main

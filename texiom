@@ -180,14 +180,14 @@ fi
 if [[ "$WATCH" -eq 1 ]]; then
     echo "Watching '$TEX_FILE' in '$TEX_DIR' - rebuilding on every change (Ctrl+C to stop) ..."
     docker run --rm -v "$TEX_DIR":/workspace -w /workspace "$RUN_IMAGE" \
-        latexmk -pvc -view=none $LATEXMK_ENGINE $SHELL_ESCAPE_OPT -interaction=nonstopmode -halt-on-error "$TEX_FILE" || true
+        latexmk -pvc -view=none $LATEXMK_ENGINE $SHELL_ESCAPE_OPT -synctex=1 -file-line-error -interaction=nonstopmode -halt-on-error "$TEX_FILE" || true
 else
     echo "Compiling '$TEX_FILE' in '$TEX_DIR' with $ENGINE ..."
     BUILD_LOG="$(mktemp)"
     trap 'rm -f "$BUILD_LOG"' EXIT
     set +e
     docker run --rm -v "$TEX_DIR":/workspace -w /workspace "$RUN_IMAGE" \
-        latexmk $LATEXMK_ENGINE $SHELL_ESCAPE_OPT -interaction=nonstopmode -halt-on-error "$TEX_FILE" 2>&1 \
+        latexmk $LATEXMK_ENGINE $SHELL_ESCAPE_OPT -synctex=1 -file-line-error -interaction=nonstopmode -halt-on-error "$TEX_FILE" 2>&1 \
         | tee "$BUILD_LOG"
     BUILD_STATUS="${PIPESTATUS[0]}"
     set -e
