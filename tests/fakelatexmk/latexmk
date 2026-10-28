@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Stand-in for latexmk: prints its arguments and creates the PDF for the last argument.
+echo "latexmk $*"
+f="${*: -1}"
+touch "${f%.tex}.pdf"

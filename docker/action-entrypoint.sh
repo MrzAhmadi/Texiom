@@ -57,6 +57,6 @@ fi
 PDF_PATH="${WORKING_DIRECTORY%/}/$PDF_FILE"
 PDF_PATH="${PDF_PATH#./}"
 echo "Done: $PDF_PATH"
-if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
-    echo "pdf_path=$PDF_PATH" >> "$GITHUB_OUTPUT"
-fi
+# action.yml reads this line and sets the pdf_path output (a container cannot write to the
+# runner's output file reliably).
+echo "TEXIOM_PDF_PATH=$PDF_PATH"

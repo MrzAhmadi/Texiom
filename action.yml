@@ -68,13 +68,22 @@ runs:
         INPUT_ARGS: ${{ inputs.args }}
         TEXIOM_IMAGE: ${{ inputs.image }}
       run: |
+        log="$RUNNER_TEMP/texiom-build.log"
         docker run --rm \
           -v "$GITHUB_WORKSPACE":/github/workspace -w /github/workspace \
-          -v "$GITHUB_OUTPUT":/tmp/github_output -e GITHUB_OUTPUT=/tmp/github_output \
           -e INPUT_ROOT_FILE -e INPUT_WORKING_DIRECTORY -e INPUT_ENGINE \
           -e INPUT_SHELL_ESCAPE -e INPUT_APT -e INPUT_PIP -e INPUT_ARGS \
           --entrypoint /usr/local/bin/texiom-action-entrypoint \
-          "$TEXIOM_IMAGE"
+          "$TEXIOM_IMAGE" | tee "$log"
+
+        # The container reports the PDF path on stdout; derive it from the inputs when
+        # the image is an older one that does not.
+        pdf="$(sed -n 's/^TEXIOM_PDF_PATH=//p' "$log" | tail -1)"
+        if [[ -z "$pdf" && -n "$INPUT_ROOT_FILE" ]]; then
+          pdf="${INPUT_WORKING_DIRECTORY%/}/${INPUT_ROOT_FILE%.tex}.pdf"
+          pdf="${pdf#./}"
+        fi
+        echo "pdf_path=$pdf" >> "$GITHUB_OUTPUT"
 
     - name: Upload PDF artifact
       if: ${{ inputs.upload_artifact == 'true' }}
