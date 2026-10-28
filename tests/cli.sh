@@ -100,6 +100,7 @@ tex -d "$PROJECT" -f a.tex
 check "compile succeeds" test "$RC" -eq 0
 check "compile runs in the packs image" calls_have "run-image texiom-packs:installed"
 check "latexmk gets SyncTeX and file:line errors (for editors such as LaTeX Workshop)" calls_have "-synctex=1 -file-line-error -interaction=nonstopmode"
+check "the project is mounted at its real path, so SyncTeX paths match the host" calls_have "-v $PROJECT:$PROJECT -w $PROJECT"
 
 : > "$FAKE_STATE/calls.log"
 tex --rebuild -d "$PROJECT" -f a.tex
@@ -129,6 +130,13 @@ tex -d "$PROJECT" -f a.tex
 check "failed build keeps its exit status" test "$RC" -eq 1
 check "a missing package names its pack" out_has "provided by the pack 'science'"
 check "and the command to install it" out_has "texiom add science"
+
+# a repeated save of a failing document: latexmk only says "previous invocation", the real error is in the .log
+printf "Latexmk: Nothing to do for 'a.tex'.\n  pdflatex: gave an error in previous invocation of latexmk.\n" > "$T/out.log"
+printf "! LaTeX Error: File \`algorithm2e.sty' not found.\n" > "$PROJECT/a.log"
+tex -d "$PROJECT" -f a.tex
+check "a repeated failing build still names the missing pack (from the previous log)" out_has "provided by the pack 'science'"
+rm -f "$PROJECT/a.log"
 
 printf "! LaTeX Error: File \`mystyle.sty' not found.\n" > "$T/out.log"
 tex -d "$PROJECT" -f a.tex

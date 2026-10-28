@@ -177,21 +177,32 @@ if [[ ! -f "$TEX_DIR/$TEX_FILE" ]]; then
     exit 1
 fi
 
+# Mount the project at its real path, so the paths LaTeX writes into logs and .synctex.gz
+# are valid on the host (editors need that for PDF <-> source jumps). A path with a colon
+# cannot be passed to `docker -v`; fall back to /workspace there.
+MOUNT_DIR="$TEX_DIR"
+[[ "$TEX_DIR" != *:* ]] || MOUNT_DIR=/workspace
+
 if [[ "$WATCH" -eq 1 ]]; then
     echo "Watching '$TEX_FILE' in '$TEX_DIR' - rebuilding on every change (Ctrl+C to stop) ..."
-    docker run --rm -v "$TEX_DIR":/workspace -w /workspace "$RUN_IMAGE" \
+    docker run --rm -v "$TEX_DIR":"$MOUNT_DIR" -w "$MOUNT_DIR" "$RUN_IMAGE" \
         latexmk -pvc -view=none $LATEXMK_ENGINE $SHELL_ESCAPE_OPT -synctex=1 -file-line-error -interaction=nonstopmode -halt-on-error "$TEX_FILE" || true
 else
     echo "Compiling '$TEX_FILE' in '$TEX_DIR' with $ENGINE ..."
     BUILD_LOG="$(mktemp)"
     trap 'rm -f "$BUILD_LOG"' EXIT
     set +e
-    docker run --rm -v "$TEX_DIR":/workspace -w /workspace "$RUN_IMAGE" \
+    docker run --rm -v "$TEX_DIR":"$MOUNT_DIR" -w "$MOUNT_DIR" "$RUN_IMAGE" \
         latexmk $LATEXMK_ENGINE $SHELL_ESCAPE_OPT -synctex=1 -file-line-error -interaction=nonstopmode -halt-on-error "$TEX_FILE" 2>&1 \
         | tee "$BUILD_LOG"
     BUILD_STATUS="${PIPESTATUS[0]}"
     set -e
     if [[ "$BUILD_STATUS" -ne 0 ]]; then
+        # latexmk will not rerun an unchanged failing document ("gave an error in previous
+        # invocation"), so its output lacks the real error: read the previous run's log too.
+        if grep -q "previous invocation of latexmk" "$BUILD_LOG" && [[ -f "$TEX_DIR/${TEX_FILE%.tex}.log" ]]; then
+            cat "$TEX_DIR/${TEX_FILE%.tex}.log" >> "$BUILD_LOG"
+        fi
         diagnose_failure "$BUILD_LOG"
         offer_install_and_retry
         exit "$BUILD_STATUS"

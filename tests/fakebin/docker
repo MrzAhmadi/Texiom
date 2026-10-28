@@ -59,7 +59,7 @@ run)
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --rm) shift ;;
-            -v) if [[ "$2" == *:/workspace ]]; then mount="${2%%:/workspace}"; fi; shift 2 ;;
+            -v) mount="${2%%:*}"; shift 2 ;;
             -w|-p) shift 2 ;;
             *) image="$1"; shift; rest=("$@"); break ;;
         esac
