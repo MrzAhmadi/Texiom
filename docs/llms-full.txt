@@ -1,6 +1,6 @@
 # Texiom - full documentation
 
-> Generated from README.md and `texiom --help` (version 0.0.81). See llms.txt for the short index.
+> Generated from README.md and `texiom --help` (version 0.0.83). See llms.txt for the short index.
 
 
 # Texiom
@@ -340,10 +340,12 @@ editor live in the Docker volume `texiom-workspace`, which Texiom no longer
 touches. Copy them out before you ever remove that volume:
 
 ```bash
-mkdir -p texiom-projects
+mkdir -p ~/texiom-projects
 docker run --rm -u "$(id -u):$(id -g)" -v texiom-workspace:/from:ro \
-  -v "$PWD/texiom-projects":/to ubuntu:24.04 cp -r /from/. /to/
+  -v ~/texiom-projects:/to ubuntu:24.04 cp -r /from/. /to/
 ```
+
+The copy goes to `~/texiom-projects`, outside any git repository.
 
 
 The default image used to contain all of TeX Live. It is now a small base image

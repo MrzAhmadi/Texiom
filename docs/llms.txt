@@ -2,7 +2,7 @@
 
 > Texiom is a Docker-based LaTeX compiler for Linux and WSL2. It builds any .tex file into a PDF with pdflatex, xelatex or lualatex (via latexmk) without installing TeX Live on the host; the only requirement is Docker and Bash.
 
-Current version: 0.0.81.
+Current version: 0.0.83.
 
 Key features:
 - Compile: `texiom -d DIR -f FILE.tex`, with `--engine`, `--watch`, `--pdf-only`, `--shell-escape`
