@@ -15,6 +15,7 @@ installation required on your machine.
 [![Stars](https://img.shields.io/github/stars/MrzAhmadi/Texiom?style=flat)](https://github.com/MrzAhmadi/Texiom/stargazers)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20WSL2-blue)
 ![Docker](https://img.shields.io/badge/requires-Docker-2496ED?logo=docker&logoColor=white)
+[![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/MrzAhmadi/badge.svg)](https://hub.xerj.org/contributors/MrzAhmadi)
 
 ## Features
 
